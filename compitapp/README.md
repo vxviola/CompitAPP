@@ -14,6 +14,8 @@ Se vuoi sostenere lo sviluppo di questo fork, puoi offrirmi un caffè tramite Pa
 
 > Progetto della comunità, non ufficiale e non affiliato ad Argo Software. Per le comunicazioni ufficiali della scuola continua a fare riferimento a DiDUP.
 
+![Dashboard UniScuola in tema Rosa, con dati dimostrativi](https://raw.githubusercontent.com/vxviola/CompitAPP/main/docs/screenshots/uniscuola-dashboard-rosa.jpg)
+
 ## Progetto originale e contributo di questo fork
 
 | Provenienza | Funzioni |
@@ -30,6 +32,18 @@ La versione **2.3.0** mette in primo piano i compiti di domani, le prossime cons
 La bacheca permette di cercare nei messaggi e nei nomi dei file, filtrare per allegati e scegliere un periodo o un intervallo di date. Il tema può seguire il dispositivo oppure essere impostato su chiaro o scuro. Il pulsante **Aggiorna** lavora in background e mostra l’ora dell’ultimo controllo riuscito o un messaggio se il controllo è incompleto.
 
 Se usi già questo fork, aggiorna l’app dallo store di Home Assistant: **impostazioni e database restano conservati**. Non occorre reinstallare. Dopo l’aggiornamento ricarica la pagina per caricare il nuovo aspetto. [Guida alla dashboard](docs/dashboard.md).
+
+## Qualche schermata
+
+Le immagini usano esclusivamente **dati dimostrativi**. I colori si possono scegliere separatamente per ciascun figlio.
+
+| Dashboard in tema Azzurro | Scheda Lovelace coordinata |
+| --- | --- |
+| ![Dashboard UniScuola in tema Azzurro](https://raw.githubusercontent.com/vxviola/CompitAPP/main/docs/screenshots/uniscuola-dashboard-azzurro.jpg) | ![Card UniScuola con palette Rosa e Azzurro](https://raw.githubusercontent.com/vxviola/CompitAPP/main/docs/screenshots/uniscuola-card-lovelace.jpg) |
+
+Sul telefono, il selettore dei figli e le sezioni principali restano a portata di mano:
+
+<p align="center"><img src="https://raw.githubusercontent.com/vxviola/CompitAPP/main/docs/screenshots/uniscuola-mobile-rosa.jpg" alt="UniScuola su telefono: tema Rosa e navigazione in basso" width="290"></p>
 
 ## Scaricare i file dalla bacheca
 
