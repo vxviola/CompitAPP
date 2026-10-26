@@ -28,7 +28,7 @@ configuration:
     description: "A che ora ricevere il riepilogo dei compiti per il giorno dopo, nel formato ore:minuti (es. 19:30). Dopo averla cambiata riavvia l'app."
   polling_intervallo_minuti:
     name: Controllo del registro ogni (minuti)
-    description: "Ogni quanti minuti CompitAPP controlla se ci sono novità sul registro. Consigliato 30. Valori molto bassi non servono e appesantiscono il servizio."
+    description: "Ogni quanti minuti UniScuola controlla se ci sono novità sul registro. Consigliato 30. Valori molto bassi non servono e appesantiscono il servizio."
   reminder_modalita:
     name: Quando inviare il riepilogo serale
     description: "auto = non invia 'nessun compito' nei giorni senza scuola (es. sabato), ma se ci sono compiti li invia sempre. sempre = lo invia ogni sera. solo_con_compiti = lo invia solo se ci sono compiti."

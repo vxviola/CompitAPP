@@ -6,7 +6,7 @@ from flask import Flask, render_template, jsonify, request, send_file, abort, se
 from datetime import date, timedelta
 from models import init_db, get_db, media_argo
 from argo_client import get_studenti, link_allegato_bacheca
-from allegati import leggi_allegati, nome_download, scarica_file
+from allegati import leggi_allegati, nome_download, scarica_file, tipo_file
 from orario_utils import GIORNI, anno_scolastico, stile_materia, etichetta_breve
 
 # Redirect errori su stdout per vederli nei log HA
@@ -179,7 +179,7 @@ def download_allegato(messaggio_id, indice, prefix=None):
                                studente_sel=sel, bacheca_url=bacheca_url), 502
     risposta = send_file(file, as_attachment=True,
                          download_name=nome_download(allegato.get('nome')),
-                         mimetype='application/octet-stream', max_age=0)
+                         mimetype=tipo_file(file, allegato.get('nome')), max_age=0)
     risposta.headers['Cache-Control'] = 'private, no-store'
     risposta.headers['X-Content-Type-Options'] = 'nosniff'
     risposta.call_on_close(file.close)
@@ -286,6 +286,20 @@ def configurazione():
 
 # ── API ──────────────────────────────────────────────────────────────────────
 
+@app.route('/api/palette', methods=['POST'])
+@app.route('/<path:prefix>/api/palette', methods=['POST'])
+def api_palette(prefix=None):
+    from preferenze import PALETTE, salva_palette
+    nome = request.args.get('studente', '')
+    if nome not in [s['nome'] for s in get_studenti()]:
+        abort(404)
+    payload = request.get_json(silent=True)
+    palette = payload.get('palette') if isinstance(payload, dict) else None
+    if palette not in PALETTE:
+        return jsonify({'ok': False, 'errore': 'Scegli Salvia, Rosa o Azzurro.'}), 400
+    salva_palette(nome, palette)
+    return jsonify({'ok': True, 'palette': palette})
+
 @app.route('/api/sync', methods=['POST'])
 def api_sync():
     from scheduler import avvia_sync_manuale
@@ -344,13 +358,13 @@ def api_test_telegram():
     nome = data.get('nome','utente')
     if not chat_id:
         return jsonify({'ok': False})
-    ok = send_telegram_to(chat_id, f"🧪 <b>CompitAPP — Test notifica</b>\n✅ Tutto funziona!\nMessaggio per <b>{nome}</b>.")
+    ok = send_telegram_to(chat_id, f"🧪 <b>UniScuola — Test notifica</b>\n✅ Tutto funziona!\nMessaggio per <b>{nome}</b>.")
     return jsonify({'ok': ok})
 
 @app.route('/api/test-broadcast', methods=['POST'])
 def api_test_broadcast():
     from notifier import send_telegram
-    ok = send_telegram("🧪 <b>CompitAPP — Test broadcast</b>\n✅ Tutti i destinatari ricevono correttamente!")
+    ok = send_telegram("🧪 <b>UniScuola — Test broadcast</b>\n✅ Tutti i destinatari ricevono correttamente!")
     ids = [x.strip() for x in os.environ.get('TELEGRAM_CHAT_IDS','').replace('\n',',').split(',') if x.strip()]
     from notifier import get_studente_chat_id
     n = len(ids) + sum(1 for s in get_studenti() if get_studente_chat_id(s['nome']))

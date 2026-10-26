@@ -29,5 +29,5 @@ echo "  ORARIO_REMINDER    = $ORARIO_REMINDER"
 echo "  POLLING_MINUTI     = $POLLING_MINUTI"
 echo "  STUDENTI           = $(echo "$STUDENTI" | jq -r 'length') configurati"
 
-echo "[run.sh] Avvio CompitAPP sulla porta 5002..."
+echo "[run.sh] Avvio UniScuola sulla porta 5002..."
 exec python3 /app/app.py

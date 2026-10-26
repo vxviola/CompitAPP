@@ -1,4 +1,4 @@
-"""Entry point principale CompitAPP"""
+"""Entry point principale UniScuola"""
 import sys
 import os
 import json
@@ -48,7 +48,10 @@ def installa_card():
             return
         os.makedirs(destinazione, exist_ok=True)
         shutil.copyfile(sorgente, os.path.join(destinazione, 'compitapp-card.js'))
-        print("[CARD] ✅ Card installata: aggiungi la risorsa /local/compitapp/compitapp-card.js (tipo: modulo JavaScript)")
+        nuova_destinazione = '/config/www/uniscuola'
+        os.makedirs(nuova_destinazione, exist_ok=True)
+        shutil.copyfile(sorgente, os.path.join(nuova_destinazione, 'uniscuola-card.js'))
+        print("[CARD] ✅ UniScuola installata: /local/uniscuola/uniscuola-card.js?v=230 (modulo JavaScript). Compatibilità con la card precedente mantenuta.")
     except Exception as e:
         print(f"[CARD] Non riesco a installare la card ({e}). Puoi copiarla a mano da GitHub: compitapp/card/compitapp-card.js")
 

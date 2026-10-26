@@ -61,7 +61,7 @@ def handle_update(update):
 def _cmd_start(chat_id, first_name):
     send_message(chat_id,
         f"👋 Ciao <b>{first_name}</b>!\n\n"
-        f"Benvenuto in <b>CompitAPP</b> 📚\n"
+        f"Benvenuto in <b>UniScuola</b> 📚\n"
         f"Il tuo assistente per compiti e voti scolastici.\n\n"
         f"🔢 Il tuo <b>Chat ID</b> è:\n<code>{chat_id}</code>\n\n"
         f"💡 Comunicalo all'amministratore per ricevere le notifiche.\n\n"
@@ -75,7 +75,7 @@ def _cmd_chatid(chat_id):
 
 def _cmd_help(chat_id):
     send_message(chat_id,
-        f"📚 <b>CompitAPP — Comandi</b>\n\n"
+        f"📚 <b>UniScuola — Comandi</b>\n\n"
         f"/start — Benvenuto e Chat ID\n"
         f"/chatid — Mostra il tuo Chat ID\n"
         f"/resoconto — Riepilogo compiti + voti\n"
@@ -122,7 +122,7 @@ def _testo_resoconto(conn, nome, mostra_nome=False):
     ultimi_voti = conn.execute(
         'SELECT materia, voto, data FROM voti WHERE studente=? ORDER BY data DESC, id DESC LIMIT 3', (nome,)).fetchall()
 
-    msg = f"📋 <b>Resoconto CompitAPP</b>\n<i>{data_ita(date.today())}</i>\n"
+    msg = f"📋 <b>Resoconto UniScuola</b>\n<i>{data_ita(date.today())}</i>\n"
     if mostra_nome:
         msg += f"🎒 <b>{nome}</b>\n"
     msg += "\n"

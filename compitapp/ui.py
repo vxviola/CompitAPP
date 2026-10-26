@@ -2,6 +2,7 @@
 from datetime import date, datetime
 from urllib.parse import urlencode
 from flask import request
+from preferenze import palette_studente
 
 MESI = ('gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno',
         'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre')
@@ -56,14 +57,14 @@ def contesto_ui(studenti, stato):
     endpoint = (request.endpoint or 'index').removeprefix('slug_').removeprefix('hassio_')
     if endpoint == 'home':
         endpoint = 'index'
-    titolo, sottotitolo = pagine.get(endpoint, ('CompitAPP', 'La scuola, con un po’ più di calma.'))
+    titolo, sottotitolo = pagine.get(endpoint, ('UniScuola', 'La scuola, con un po’ più di calma.'))
     ultimo = stato.get('ultimo_successo')
     try:
         dt = datetime.fromisoformat(ultimo) if ultimo else None
         etichetta = ('Oggi' if dt and dt.date() == date.today() else data_leggibile(ultimo)) + (f' alle {dt:%H:%M}' if dt else '')
     except (ValueError, TypeError):
         etichetta = ''
-    return dict(ui_link=link, ui_base=base, ui_asset=lambda p: base + '/static/' + p,
+    return dict(ui_link=link, ui_base=base, ui_palette=palette_studente(scelto), ui_asset=lambda p: base + '/static/' + p,
                 pagina=endpoint, titolo_pagina=titolo, sottotitolo_pagina=sottotitolo,
                 ui_studente=scelto, sync_stato=stato, sync_etichetta=etichetta if ultimo else '',
                 data_oggi=data_leggibile(date.today(), True))

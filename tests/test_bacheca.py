@@ -213,10 +213,26 @@ class RouteTest(DatabaseFixture, unittest.TestCase):
                 r = self.client.get(prefix + f'/bacheca/{self.id}/allegati/0', query_string={'studente': 'Anna & Leo'})
                 self.assertEqual(r.status_code, 200)
                 self.assertEqual(r.data, b'%PDF-test')
+                self.assertEqual(r.mimetype, 'application/pdf')
                 self.assertIn('attachment;', r.headers['Content-Disposition'])
                 self.assertEqual(r.headers['Cache-Control'], 'private, no-store')
                 link.assert_called_once_with(STUDENTI[0], ALLEGATO)
                 r.close()
+
+    def test_mime_da_firma_e_file_non_consumato(self):
+        for contenuto, nome, tipo in ((b'%PDF-1.4', 'Allegato', 'application/pdf'),
+                                     (b'\x89PNG\r\n\x1a\nresto', 'foto.bin', 'image/png'),
+                                     (b'PKzip', 'Compiti.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+                                     (b'<script>alert(1)</script>', 'pagina.html', 'application/octet-stream')):
+            with self.subTest(nome=nome):
+                file = io.BytesIO(contenuto)
+                self.assertEqual(allegati.tipo_file(file, nome), tipo)
+                self.assertEqual(file.read(), contenuto)
+
+    def test_script_download_presente_con_prefisso_ingress(self):
+        r = self.client.get('/addon/bacheca?studente=Anna+%26+Leo')
+        self.assertIn('data-attachment data-filename="Circolare è.pdf"', r.text)
+        self.assertIn('/addon/static/allegati.js?v=230', r.text)
 
     def test_altro_studente_indice_o_id_non_validi(self):
         with patch('app.link_allegato_bacheca') as link:

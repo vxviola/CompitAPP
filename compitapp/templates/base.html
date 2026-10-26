@@ -1,17 +1,18 @@
 {% from "ui_macros.html" import icon, nav_item with context %}
 <!DOCTYPE html>
-<html lang="it">
+<html lang="it" data-palette="{{ ui_palette }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#235e50">
-    <title>{{ titolo_pagina }} · CompitAPP</title>
+    <title>{{ titolo_pagina }} · UniScuola</title>
     <script>try{var t=localStorage.getItem('compitapp-theme')||'system';document.documentElement.dataset.theme=t==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):t;}catch(e){}</script>
     <link rel="icon" type="image/png" href="{{ ui_asset('favicon-32x32.png') }}">
     <link rel="apple-touch-icon" href="{{ ui_asset('apple-touch-icon.png') }}">
-    <link rel="stylesheet" href="{{ ui_asset('dashboard.css') }}?v=220">
-    <script>window.COMPITAPP={{ {'base': ui_base, 'studente': ui_studente}|tojson }};</script>
-    <script src="{{ ui_asset('dashboard.js') }}?v=220" defer></script>
+    <link rel="stylesheet" href="{{ ui_asset('dashboard.css') }}?v=230">
+    <script>window.COMPITAPP={{ {'base': ui_base, 'studente': ui_studente, 'palette': ui_palette}|tojson }};</script>
+    <script src="{{ ui_asset('dashboard.js') }}?v=230" defer></script>
+    <script src="{{ ui_asset('allegati.js') }}?v=230" defer></script>
 </head>
 <body>
 {% if demo_preview|default(false) %}<div class="demo-banner">ANTEPRIMA · DATI DIMOSTRATIVI</div>{% endif %}
@@ -38,7 +39,7 @@
 </svg>
 
 <aside class="sidebar" aria-label="Menu principale">
-    <a href="{{ ui_link('/') }}" class="brand"><span class="brand-mark">{{ icon('book') }}</span><span>CompitAPP<small>.</small></span></a>
+    <a href="{{ ui_link('/') }}" class="brand"><span class="brand-mark">{{ icon('book') }}</span><span>UniScuola<small>.</small></span></a>
     <p class="brand-tagline">La scuola, con più calma.</p>
     <div class="nav-caption">Il tuo spazio</div>
     <nav class="nav-list" aria-label="Sezioni">
@@ -52,12 +53,12 @@
     </nav>
     <div class="nav-caption">Preferenze</div>
     <nav class="nav-list" aria-label="Preferenze">{{ nav_item('/configurazione', 'Impostazioni', 'settings', 'configurazione') }}</nav>
-    <div class="sidebar-foot">{{ icon('leaf', 'sm') }} <strong>Un piccolo aiuto, ogni giorno.</strong>Fork di <a href="https://github.com/elbarto8383/CompitAPP" target="_blank" rel="noopener noreferrer">elbarto8383</a><br>Curato da vxviola · 2.2.0</div>
+    <div class="sidebar-foot">{{ icon('leaf', 'sm') }} <strong>Un piccolo aiuto, ogni giorno.</strong>Curato da vxviola · 2.3.0</div>
 </aside>
 
 <div class="app-main">
     <header class="topbar">
-        <a class="mobile-brand" href="{{ ui_link('/') }}">{{ icon('book') }} CompitAPP.</a>
+        <a class="mobile-brand" href="{{ ui_link('/') }}">{{ icon('book') }} UniScuola.</a>
         <div class="student-switcher" aria-label="Seleziona studente">
             {% for s in studenti|default([]) %}
             <a href="{{ ui_link('/' if pagina == 'download_allegato' else {'index':'/','calendario':'/calendario','bacheca':'/bacheca','voti':'/voti','orario':'/orario','assenze':'/assenze','argomenti':'/argomenti','configurazione':'/configurazione'}.get(pagina, '/'), studente=s.nome) }}" class="student-chip {{ 'active' if s.nome == ui_studente }}" {% if s.nome == ui_studente %}aria-current="true"{% endif %}>
@@ -71,6 +72,7 @@
                 <strong id="sync-time">{{ sync_etichetta or 'In attesa del primo controllo' }}</strong>
             </div>
             <button class="icon-btn" id="theme-toggle" aria-label="Cambia tema" title="Cambia tema">{{ icon('theme') }}</button>
+            {% if ui_studente %}<select id="palette-select" class="palette-select" aria-label="Stile per {{ ui_studente }}" title="Colore dello studente">{% for value, label in [('salvia','Salvia'),('rosa','Rosa'),('azzurro','Azzurro')] %}<option value="{{ value }}" {% if ui_palette == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>{% endif %}
             <button class="sync-button" id="sync-button" data-sync-button onclick="syncNow()" {% if sync_stato.get('in_corso') %}disabled{% endif %}>{{ icon('refresh') }}<span>Aggiorna</span></button>
         </div>
     </header>
@@ -91,7 +93,7 @@
     <button id="more-toggle" aria-label="Altre sezioni" aria-expanded="false" aria-controls="more-menu" class="{{ 'active' if pagina in ['orario','assenze','argomenti','configurazione'] }}">{{ icon('more') }}<span>Altro</span></button>
 </nav>
 <div id="more-menu" class="more-menu" hidden role="dialog" aria-label="Altre sezioni">
-    <div class="more-menu-head">Esplora CompitAPP<button id="more-close" class="icon-btn" aria-label="Chiudi menu">{{ icon('close') }}</button></div>
+    <div class="more-menu-head">Esplora UniScuola<button id="more-close" class="icon-btn" aria-label="Chiudi menu">{{ icon('close') }}</button></div>
     <div class="more-menu-grid">
         {{ nav_item('/orario', 'Orario', 'clock', 'orario') }}{{ nav_item('/assenze', 'Presenze', 'check', 'assenze') }}
         {{ nav_item('/argomenti', 'Lezioni', 'book', 'argomenti') }}{{ nav_item('/configurazione', 'Impostazioni', 'settings', 'configurazione') }}

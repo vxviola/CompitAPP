@@ -25,6 +25,26 @@ def nome_download(nome):
     return nome if nome not in ('', '.', '..') else 'Allegato'
 
 
+def tipo_file(file, nome):
+    """Tipi deterministici, anche su sistemi senza database MIME installato."""
+    posizione = file.tell()
+    firma = file.read(16)
+    file.seek(posizione)
+    for prefisso, tipo in ((b'%PDF-', 'application/pdf'),
+                           (b'\x89PNG\r\n\x1a\n', 'image/png'),
+                           (b'\xff\xd8\xff', 'image/jpeg'),
+                           (b'GIF87a', 'image/gif'), (b'GIF89a', 'image/gif')):
+        if firma.startswith(prefisso):
+            return tipo
+    estensione = nome_download(nome).rsplit('.', 1)[-1].lower()
+    return {'pdf': 'application/pdf', 'doc': 'application/msword',
+            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls': 'application/vnd.ms-excel',
+            'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'zip': 'application/zip', 'png': 'image/png', 'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg'}.get(estensione, 'application/octet-stream')
+
+
 def _verifica_url(url):
     parti = urlsplit(url)
     host = (parti.hostname or '').lower()

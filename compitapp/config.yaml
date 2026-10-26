@@ -1,7 +1,7 @@
-name: "CompitAPP"
+name: "UniScuola"
 description: "Dashboard famiglia per DiDUP/Argo: compiti, voti, bacheca con allegati e notifiche Telegram"
 url: "https://github.com/vxviola/CompitAPP"
-version: "2.2.0"
+version: "2.3.0"
 slug: compitapp
 init: false
 arch:
@@ -62,10 +62,10 @@ ingress: true
 ingress_port: 5002
 ingress_entry: /
 panel_icon: mdi:bookshelf
-panel_title: CompitAPP
+panel_title: UniScuola
 ports:
   5002/tcp: 5002
 ports_description:
-  5002/tcp: "CompitAPP Web UI"
+  5002/tcp: "UniScuola Web UI"
 map:
   - config:rw

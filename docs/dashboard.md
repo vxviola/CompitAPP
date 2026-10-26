@@ -1,4 +1,4 @@
-# Dashboard CompitAPP 2.2
+# Dashboard UniScuola
 
 La nuova interfaccia usa gli stessi dati e le stesse opzioni del fork 2.1.1. Aggiornando l’app già installata, configurazione, credenziali e database restano nella sua cartella privata. Non occorre reinstallare o azzerare il registro.
 

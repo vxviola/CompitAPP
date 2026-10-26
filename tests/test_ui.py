@@ -27,6 +27,38 @@ class DashboardTest(DatabaseFixture, unittest.TestCase):
         p.start()
         self.addCleanup(p.stop)
 
+    def test_palette_per_figlio_persistente_e_prefissi_ingress(self):
+        from preferenze import palette_studente
+        for prefix in ('', '/addon', '/app/addon', '/api/hassio_ingress/token'):
+            r = self.client.post(prefix + '/api/palette?studente=Luca', json={'palette': 'azzurro'})
+            self.assertEqual(r.status_code, 200)
+            self.assertEqual(palette_studente('Luca'), 'azzurro')
+            self.assertEqual(palette_studente('Anna & Leo'), 'salvia')
+            html = self.client.get(prefix + '/?studente=Luca').text
+            self.assertIn('data-palette="azzurro"', html)
+            self.assertIn('Stile per Luca', html)
+        self.client.post('/api/palette?studente=Anna+%26+Leo', json={'palette': 'rosa'})
+        self.assertEqual(palette_studente('Anna & Leo'), 'rosa')
+        self.assertEqual(palette_studente('Luca'), 'azzurro')
+
+    def test_palette_rifiuta_stili_o_studenti_non_validi(self):
+        for payload in ({'palette': '<script>'}, {'palette': None}, [], {}):
+            self.assertEqual(self.client.post('/api/palette?studente=Luca', json=payload).status_code, 400)
+        self.assertEqual(self.client.post('/api/palette?studente=inesistente', json={'palette': 'rosa'}).status_code, 404)
+
+    def test_sensori_mantengono_entita_e_pubblicano_nome_e_palette(self):
+        import notifier
+        from preferenze import salva_palette
+        salva_palette('Luca', 'azzurro')
+        with patch.object(notifier, 'SUPERVISOR_TOKEN', 'test'), patch.object(notifier.requests, 'post') as post:
+            notifier.sync_sensori_ha('Luca', {'compiti_oggi': 2})
+            self.assertEqual(post.call_count, 6)
+            for call in post.call_args_list:
+                self.assertIn('/sensor.compitapp_luca_', call.args[0])
+                attrs = call.kwargs['json']['attributes']
+                self.assertEqual(attrs['palette'], 'azzurro')
+                self.assertTrue(attrs['friendly_name'].startswith('UniScuola Luca'))
+
     def test_tutte_le_pagine_e_i_prefissi(self):
         for prefix in ('', '/addon', '/app/addon', '/api/hassio_ingress/token'):
             for page in ('/', '/bacheca', '/voti', '/calendario', '/orario', '/assenze', '/argomenti', '/configurazione'):

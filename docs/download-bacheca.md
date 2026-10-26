@@ -38,3 +38,9 @@ python -m venv .venv
 ```
 
 La suite verifica migrazione, aggiornamento degli avvisi, separazione tra studenti, bacheca personale, rinnovo della sessione, prefissi Ingress, download binario, errori e limite dimensionale. Non richiede credenziali e non contatta Argo o Telegram.
+
+## UniScuola 2.3.0 e iOS
+
+Il fork ora si chiama UniScuola; il repository e lo slug HA restano invariati. Il pulsante Scarica usa `fetch` con credenziali della stessa origine e cache disabilitata, senza lasciare la bacheca. Prepara un `File` con nome e MIME corretti; i PDF sono riconosciuti anche dalla firma `%PDF-`. Un secondo tap apre Web Share con il file, se `navigator.canShare({files})` lo permette: su iPhone si può scegliere Salva su File. Il download tramite blob è il fallback. L’URL temporaneo resta locale alla pagina e viene revocato alla chiusura; non contiene l’URL firmato Argo. L’anteprima è disponibile solo per PDF riconosciuti dalla firma. HTML e SVG non vengono aperti come documenti attivi.
+
+Test automatici simulano il menu di condivisione e gli errori; non sostituiscono la verifica con l’app Companion su un iPhone reale. Il comportamento di navigazione e Ingress si basa sul [router Home Assistant](https://github.com/home-assistant/frontend/blob/dev/src/common/navigate.ts) e sul [pannello app](https://github.com/home-assistant/frontend/blob/dev/src/panels/app/ha-panel-app.ts).

@@ -1,7 +1,7 @@
 """Accesso ad Argo con SPID/CIE (sperimentale).
 
 Con SPID non si può fare il login automatico: l'utente si autentica una volta nel browser, copia
-l'indirizzo finale (che contiene un codice temporaneo) e lo incolla in CompitAPP. L'app scambia il
+l'indirizzo finale (che contiene un codice temporaneo) e lo incolla in UniScuola. L'app scambia il
 codice con i token e poi rinnova da sola il token di accesso usando quello di rinnovo.
 
 Il token di rinnovo di Argo cambia a ogni uso ("rotazione"): quello nuovo viene salvato SUBITO, prima
@@ -156,8 +156,8 @@ def collega(nome, testo):
 def _avvisa_da_ricollegare(nome):
     try:
         from notifier import send_telegram
-        send_telegram(f"⚠️ <b>CompitAPP</b>\nL'accesso ad Argo per <b>{nome}</b> con SPID è scaduto.\n"
-                      "Apri CompitAPP → Configurazione → «Collega con SPID» per ricollegarlo.")
+        send_telegram(f"⚠️ <b>UniScuola</b>\nL'accesso ad Argo per <b>{nome}</b> con SPID è scaduto.\n"
+                      "Apri UniScuola → Configurazione → «Collega con SPID» per ricollegarlo.")
     except Exception as e:
         print(f"[SPID] Avviso Telegram non inviato ({e})")
 

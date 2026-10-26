@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.3.0 — UniScuola, card Lovelace e documenti su iOS
+
+- Il fork prende il nome **UniScuola**, con riconoscimento esplicito di CompitAPP e ringraziamento a elbarto8383. Nome aggiornato nell’app, nella barra laterale, nelle notifiche Telegram e nei nomi visualizzati dei sensori; identificativi, impostazioni e database mantenuti.
+- Palette **Rosa**, **Azzurro** e **Salvia** per ciascun figlio, salvate nel database e riprese dalla scheda tramite gli attributi dei sensori; selettore in alto nell’app, compatibilità con tema chiaro e scuro.
+- Nuova scheda Lovelace coordinata con la dashboard: verde salvia, titoli serif, icone, tema chiaro/scuro e layout adattivo. Disponibile come `custom:uniscuola-card`; le card precedenti continuano a funzionare.
+- **Apri UniScuola** rileva il pannello reale e naviga all’interno di Home Assistant. `addon_slug` permette di scegliere il fork anche con l’originale installato o senza voce nella barra laterale; errore esplicito quando il collegamento è ambiguo.
+- Allegati: tipi MIME corretti e download preparato dentro la bacheca, senza navigazione diretta verso i byte del documento. Menu **Salva o condividi** sui dispositivi compatibili, secondo tap per mantenere l’attivazione utente su iOS, anteprima PDF e download normale negli altri browser.
+- Test per MIME, prefissi Ingress, navigazione della card, coesistenza originale/fork e gestione del download/condivisione. Nessuna verifica su un iPhone fisico eseguita nello sviluppo.
+
 ## 2.2.0 — una nuova dashboard
 
 - Interfaccia ridisegnata: barra laterale su desktop, menu in basso sul telefono, selettore dei figli sempre disponibile, icone vettoriali e date leggibili.

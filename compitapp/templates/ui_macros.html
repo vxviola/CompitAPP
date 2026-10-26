@@ -15,6 +15,6 @@
 <div class="attachment">
     {{ file_icon(a['nome']) }}
     <div class="attachment-info"><strong>{{ a['nome'] }}</strong>{% if a.get('descrizione') %}<span>{{ a['descrizione'] }}</span>{% endif %}</div>
-    <a class="download-btn" href="{{ ui_link('/bacheca/' ~ msg['id'] ~ '/allegati/' ~ index) }}" aria-label="Scarica {{ a['nome'] }}">{{ icon('download') }}<span>Scarica</span></a>
+    <a class="download-btn" data-attachment data-filename="{{ a['nome'] }}" href="{{ ui_link('/bacheca/' ~ msg['id'] ~ '/allegati/' ~ index) }}" aria-label="Scarica {{ a['nome'] }}">{{ icon('download') }}<span>Scarica</span></a>
 </div>
 {%- endmacro %}

@@ -1,4 +1,4 @@
-/* CompitAPP: navigazione, tema, ricerca e stato del registro. Nessuna dipendenza esterna. */
+/* UniScuola: navigazione, tema, ricerca e stato del registro. Nessuna dipendenza esterna. */
 (function () {
     'use strict';
     const ui = window.COMPITAPP || {base: '', studente: ''};
@@ -19,6 +19,22 @@
         toastTimer = setTimeout(function () { el.hidden = true; }, ms || 4500);
     };
     const themes = ['system', 'light', 'dark'];
+    const paletteSelect = $('palette-select');
+    if (paletteSelect) paletteSelect.addEventListener('change', async function () {
+        const previous = document.documentElement.dataset.palette;
+        const palette = paletteSelect.value;
+        document.documentElement.dataset.palette = palette;
+        paletteSelect.disabled = true;
+        try {
+            const r = await fetch(api('/api/palette'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({palette: palette})});
+            if (!r.ok) throw new Error('palette');
+            window.showToast('Stile ' + paletteSelect.options[paletteSelect.selectedIndex].text + ' salvato per ' + ui.studente + '.');
+        } catch (_) {
+            document.documentElement.dataset.palette = previous;
+            paletteSelect.value = previous;
+            window.showToast('Impossibile salvare lo stile. Riprova.', 4500, true);
+        } finally { paletteSelect.disabled = false; }
+    });
     const names = {system: 'Automatico', light: 'Chiaro', dark: 'Scuro'};
     let theme = 'system';
     try { theme = localStorage.getItem('compitapp-theme') || 'system'; } catch (_) {}
