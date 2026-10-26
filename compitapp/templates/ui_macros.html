@@ -1,0 +1,20 @@
+{% macro icon(name, cls='') -%}
+<svg class="icon {{ cls }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-{{ name }}"></use></svg>
+{%- endmacro %}
+
+{% macro file_icon(nome) -%}
+{% set ext = nome.rsplit('.', 1)[-1]|upper if '.' in nome else 'FILE' %}
+<span class="file-icon {{ 'pdf' if ext == 'PDF' else 'doc' }}">{{ ext[:4] }}</span>
+{%- endmacro %}
+
+{% macro nav_item(page, label, symbol, active) -%}
+<a href="{{ ui_link(page) }}" class="nav-link {{ 'active' if pagina == active }}" {% if pagina == active %}aria-current="page"{% endif %}>{{ icon(symbol) }}<span>{{ label }}</span>{% if pagina == active %}<span class="nav-dot"></span>{% endif %}</a>
+{%- endmacro %}
+
+{% macro attachment(msg, a, index) -%}
+<div class="attachment">
+    {{ file_icon(a['nome']) }}
+    <div class="attachment-info"><strong>{{ a['nome'] }}</strong>{% if a.get('descrizione') %}<span>{{ a['descrizione'] }}</span>{% endif %}</div>
+    <a class="download-btn" href="{{ ui_link('/bacheca/' ~ msg['id'] ~ '/allegati/' ~ index) }}" aria-label="Scarica {{ a['nome'] }}">{{ icon('download') }}<span>Scarica</span></a>
+</div>
+{%- endmacro %}

@@ -1,113 +1,103 @@
+{% from "ui_macros.html" import icon, nav_item with context %}
 <!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CompitAPP 📚</title>
-    <meta name="theme-color" content="#4f46e5">
-    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
-    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        :root {
-            --primary: #4f46e5; --success: #10b981; --warning: #f59e0b; --danger: #ef4444;
-            --bg: #f1f5f9; --card: #ffffff; --text: #1e293b;
-            --text-muted: #64748b; --border: #e2e8f0; --radius: 12px;
-        }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
-        .navbar { background: var(--primary); color: white; padding: 0 16px; display: flex; align-items: center; height: 56px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(79,70,229,0.3); gap: 10px; }
-        .navbar h1 { font-size: 1.1rem; font-weight: 700; flex: 1; }
-        .sync-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; }
-        .studente-bar { background: #3730a3; padding: 6px 16px; display: flex; align-items: center; gap: 8px; overflow-x: auto; }
-        .studente-chip { padding: 4px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; cursor: pointer; border: none; white-space: nowrap; text-decoration: none; display: inline-block; }
-        .studente-chip.active { background: white; color: var(--primary); }
-        .studente-chip.inactive { background: rgba(255,255,255,0.15); color: white; }
-        .nav-tabs { display: flex; background: white; border-bottom: 2px solid var(--border); overflow-x: auto; }
-        .nav-tabs a { padding: 10px 16px; text-decoration: none; color: var(--text-muted); font-size: 0.85rem; font-weight: 500; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -2px; }
-        .nav-tabs a.active { color: var(--primary); border-bottom-color: var(--primary); }
-        .container { padding: 16px; max-width: 800px; margin: 0 auto; }
-        .card { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); border: 1px solid var(--border); }
-        .card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-        .card-title { font-size: 0.95rem; font-weight: 700; }
-        .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
-        .badge-primary { background: #ede9fe; color: var(--primary); }
-        .badge-warning { background: #fef3c7; color: #d97706; }
-        .badge-danger  { background: #fee2e2; color: var(--danger); }
-        .materia-tag { display: inline-block; background: var(--primary); color: white; padding: 2px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
-        .compito-item { padding: 10px 0; border-bottom: 1px solid var(--border); }
-        .compito-item:last-child { border-bottom: none; }
-        .compito-testo { font-size: 0.88rem; line-height: 1.5; margin-top: 4px; white-space: pre-line; }
-        .stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
-        .stat-card { background: white; border-radius: var(--radius); padding: 14px; text-align: center; border: 1px solid var(--border); }
-        .stat-number { font-size: 2rem; font-weight: 800; color: var(--primary); }
-        .stat-label { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
-        .empty-state { text-align: center; padding: 24px; color: var(--text-muted); font-size: 0.9rem; }
-        .voto-chip { display: inline-block; width: 40px; height: 40px; border-radius: 50%; text-align: center; line-height: 40px; font-weight: 800; font-size: 1rem; }
-        .voto-ok   { background: #d1fae5; color: #065f46; }
-        .voto-warn { background: #fef3c7; color: #92400e; }
-        .voto-bad  { background: #fee2e2; color: #991b1b; }
-        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1e293b; color: white; padding: 10px 20px; border-radius: 8px; font-size: 0.85rem; display: none; z-index: 999; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#235e50">
+    <title>{{ titolo_pagina }} · CompitAPP</title>
+    <script>try{var t=localStorage.getItem('compitapp-theme')||'system';document.documentElement.dataset.theme=t==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):t;}catch(e){}</script>
+    <link rel="icon" type="image/png" href="{{ ui_asset('favicon-32x32.png') }}">
+    <link rel="apple-touch-icon" href="{{ ui_asset('apple-touch-icon.png') }}">
+    <link rel="stylesheet" href="{{ ui_asset('dashboard.css') }}?v=220">
+    <script>window.COMPITAPP={{ {'base': ui_base, 'studente': ui_studente}|tojson }};</script>
+    <script src="{{ ui_asset('dashboard.js') }}?v=220" defer></script>
 </head>
 <body>
+{% if demo_preview|default(false) %}<div class="demo-banner">ANTEPRIMA · DATI DIMOSTRATIVI</div>{% endif %}
+<a href="#main-content" class="skip-link">Vai al contenuto</a>
+<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M3 4.5c3-1 6-.5 9 1.5 3-2 6-2.5 9-1.5v15c-3-1-6-.5-9 1.5-3-2-6-2.5-9-1.5zM12 6v15"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7M5 9v11h14V9M9 20v-7h6v7"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 10h18m-13 4h2m4 0h2m-8 3h2"/></symbol>
+    <symbol id="i-board" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M9 8h6M9 12h6M9 16h3"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 3v17h17M8 16v-5m5 5V6m5 10V9"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/><path d="M20 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="var(--card)"/><circle cx="16" cy="17" r="3" fill="var(--card)"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 8a8.5 8.5 0 0 0-14-4L3 7m0-5v5h5M4 16a8.5 8.5 0 0 0 14 4l3-3m0 5v-5h-5"/></symbol>
+    <symbol id="i-theme" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4v16M12 4a8 8 0 0 1 0 16" fill="currentColor"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></symbol>
+    <symbol id="i-paperclip" viewBox="0 0 24 24"><path d="m8 12 7-7a4 4 0 0 1 6 6L10 22a6 6 0 0 1-8-8L13 3m-7 13 9-9a1.5 1.5 0 0 1 2 2l-9 9"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="19" cy="12" r="1" fill="currentColor"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+    <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M20 3C9 2 3 6 4 13c1 7 9 9 13 3 3-4 3-8 3-13ZM3 22 16 9"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L3 9.6l6.2-.9z"/></symbol>
+</svg>
 
-<div class="navbar">
-    <h1>📚 CompitAPP</h1>
-    <button class="sync-btn" onclick="syncNow()">🔄 Sync</button>
+<aside class="sidebar" aria-label="Menu principale">
+    <a href="{{ ui_link('/') }}" class="brand"><span class="brand-mark">{{ icon('book') }}</span><span>CompitAPP<small>.</small></span></a>
+    <p class="brand-tagline">La scuola, con più calma.</p>
+    <div class="nav-caption">Il tuo spazio</div>
+    <nav class="nav-list" aria-label="Sezioni">
+        {{ nav_item('/', 'Panoramica', 'home', 'index') }}
+        {{ nav_item('/calendario', 'Calendario', 'calendar', 'calendario') }}
+        {{ nav_item('/bacheca', 'Bacheca', 'board', 'bacheca') }}
+        {{ nav_item('/voti', 'Voti e progressi', 'chart', 'voti') }}
+        {{ nav_item('/orario', 'Orario', 'clock', 'orario') }}
+        {{ nav_item('/assenze', 'Presenze', 'check', 'assenze') }}
+        {{ nav_item('/argomenti', 'Lezioni', 'book', 'argomenti') }}
+    </nav>
+    <div class="nav-caption">Preferenze</div>
+    <nav class="nav-list" aria-label="Preferenze">{{ nav_item('/configurazione', 'Impostazioni', 'settings', 'configurazione') }}</nav>
+    <div class="sidebar-foot">{{ icon('leaf', 'sm') }} <strong>Un piccolo aiuto, ogni giorno.</strong>Fork di <a href="https://github.com/elbarto8383/CompitAPP" target="_blank" rel="noopener noreferrer">elbarto8383</a><br>Curato da vxviola · 2.2.0</div>
+</aside>
+
+<div class="app-main">
+    <header class="topbar">
+        <a class="mobile-brand" href="{{ ui_link('/') }}">{{ icon('book') }} CompitAPP.</a>
+        <div class="student-switcher" aria-label="Seleziona studente">
+            {% for s in studenti|default([]) %}
+            <a href="{{ ui_link('/' if pagina == 'download_allegato' else {'index':'/','calendario':'/calendario','bacheca':'/bacheca','voti':'/voti','orario':'/orario','assenze':'/assenze','argomenti':'/argomenti','configurazione':'/configurazione'}.get(pagina, '/'), studente=s.nome) }}" class="student-chip {{ 'active' if s.nome == ui_studente }}" {% if s.nome == ui_studente %}aria-current="true"{% endif %}>
+                <span class="avatar">{{ s.nome[:2]|upper }}</span><span>{{ s.nome|title }}</span>
+            </a>
+            {% else %}<a class="student-chip" href="{{ ui_link('/configurazione') }}">Configura uno studente</a>{% endfor %}
+        </div>
+        <div class="top-actions">
+            <div class="sync-info {{ 'is-error' if sync_stato.get('esito') == 'errore' }}" id="sync-info" aria-live="polite">
+                <span><i class="status-dot"></i><span id="sync-label">{{ 'Sincronizzazione in corso' if sync_stato.get('in_corso') else 'Ultimo controllo da verificare' if sync_stato.get('esito') == 'errore' else 'Ultimo aggiornamento' }}</span></span>
+                <strong id="sync-time">{{ sync_etichetta or 'In attesa del primo controllo' }}</strong>
+            </div>
+            <button class="icon-btn" id="theme-toggle" aria-label="Cambia tema" title="Cambia tema">{{ icon('theme') }}</button>
+            <button class="sync-button" id="sync-button" data-sync-button onclick="syncNow()" {% if sync_stato.get('in_corso') %}disabled{% endif %}>{{ icon('refresh') }}<span>Aggiorna</span></button>
+        </div>
+    </header>
+    <main id="main-content" class="content-surface">
+        <div class="page-intro">
+            <div><div class="eyebrow">{{ ui_studente|title if ui_studente else 'Benvenuto' }} · Il tuo spazio scuola</div><h1>{{ titolo_pagina }}</h1><p>{{ sottotitolo_pagina }}</p></div>
+            <div class="date-label">{{ icon('calendar', 'sm') }} {{ data_oggi }}</div>
+        </div>
+        {% block content %}{% endblock %}
+    </main>
 </div>
 
-{% if studenti is defined and studenti|length > 1 %}
-<div class="studente-bar">
-    {% for s in studenti %}
-    <a href="?studente={{ s.nome|urlencode }}"
-       class="studente-chip {{ 'active' if s.nome == studente_sel else 'inactive' }}">
-        🎒 {{ s.nome }}
-    </a>
-    {% endfor %}
+<nav class="mobile-nav" aria-label="Navigazione mobile">
+    <a href="{{ ui_link('/') }}" class="{{ 'active' if pagina == 'index' }}" {% if pagina == 'index' %}aria-current="page"{% endif %}>{{ icon('home') }}<span>Home</span></a>
+    <a href="{{ ui_link('/calendario') }}" class="{{ 'active' if pagina == 'calendario' }}" {% if pagina == 'calendario' %}aria-current="page"{% endif %}>{{ icon('calendar') }}<span>Calendario</span></a>
+    <a href="{{ ui_link('/bacheca') }}" class="{{ 'active' if pagina == 'bacheca' }}" {% if pagina == 'bacheca' %}aria-current="page"{% endif %}>{{ icon('board') }}<span>Bacheca</span></a>
+    <a href="{{ ui_link('/voti') }}" class="{{ 'active' if pagina == 'voti' }}" {% if pagina == 'voti' %}aria-current="page"{% endif %}>{{ icon('chart') }}<span>Voti</span></a>
+    <button id="more-toggle" aria-label="Altre sezioni" aria-expanded="false" aria-controls="more-menu" class="{{ 'active' if pagina in ['orario','assenze','argomenti','configurazione'] }}">{{ icon('more') }}<span>Altro</span></button>
+</nav>
+<div id="more-menu" class="more-menu" hidden role="dialog" aria-label="Altre sezioni">
+    <div class="more-menu-head">Esplora CompitAPP<button id="more-close" class="icon-btn" aria-label="Chiudi menu">{{ icon('close') }}</button></div>
+    <div class="more-menu-grid">
+        {{ nav_item('/orario', 'Orario', 'clock', 'orario') }}{{ nav_item('/assenze', 'Presenze', 'check', 'assenze') }}
+        {{ nav_item('/argomenti', 'Lezioni', 'book', 'argomenti') }}{{ nav_item('/configurazione', 'Impostazioni', 'settings', 'configurazione') }}
+    </div>
 </div>
-{% endif %}
-
-<div class="nav-tabs" id="nav-tabs">
-    <a href="#" onclick="navTo('/')" class="{{ 'active' if request.path == '/' }}">🏠 Oggi</a>
-    <a href="#" onclick="navTo('/calendario')" class="{{ 'active' if request.path == '/calendario' }}">📅 Calendario</a>
-    <a href="#" onclick="navTo('/voti')" class="{{ 'active' if request.path == '/voti' }}">📊 Voti</a>
-    <a href="#" onclick="navTo('/orario')" class="{{ 'active' if request.path == '/orario' }}">🗓️ Orario</a>
-    <a href="#" onclick="navTo('/bacheca')" class="{{ 'active' if request.path == '/bacheca' }}">📢 Bacheca</a>
-    <a href="#" onclick="navTo('/assenze')" class="{{ 'active' if request.path == '/assenze' }}">🏠 Assenze</a>
-    <a href="#" onclick="navTo('/argomenti')" class="{{ 'active' if request.path == '/argomenti' }}">📖 Lezioni</a>
-    <a href="#" onclick="navTo('/configurazione')" class="{{ 'active' if request.path == '/configurazione' }}">⚙️ Config</a>
-</div>
-
-{% block content %}{% endblock %}
-
-<div class="toast" id="toast"></div>
-<script>
-function navTo(page) {
-    // Usa path relativi — funziona sempre sia con Ingress che senza
-    const studente = new URLSearchParams(window.location.search).get('studente') || '';
-    // Torna alla root del sito corrente e aggiungi il path
-    const base = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
-    const url = base + page + (studente ? '?studente=' + encodeURIComponent(studente) : '');
-    window.location.href = url;
-    return false;
-}
-
-function showToast(msg, ms=2500) {
-    const t = document.getElementById('toast');
-    t.textContent = msg; t.style.display = 'block';
-    setTimeout(() => t.style.display = 'none', ms);
-}
-async function syncNow() {
-    showToast('⏳ Sincronizzazione...');
-    try {
-        const r = await fetch('./api/sync', {method:'POST'});
-        if (r.ok) { showToast('✅ Sync completato!'); setTimeout(() => location.reload(), 1500); }
-        else showToast('❌ Errore sync');
-    } catch(e) { showToast('❌ Errore connessione'); }
-}
-</script>
+<div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
 {% block scripts %}{% endblock %}
 </body>
 </html>

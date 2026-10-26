@@ -68,7 +68,7 @@
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
             <button class="btn btn-primary btn-sm" onclick="testConnessione()">🔍 Testa connessione</button>
-            <button class="btn btn-success btn-sm" onclick="syncNow()">🔄 Sync ora</button>
+            <button class="btn btn-success btn-sm" data-sync-button onclick="syncNow()">🔄 Aggiorna ora</button>
         </div>
         <div id="test-result" style="margin-top:10px;font-size:0.85rem"></div>
     </div>
@@ -170,7 +170,7 @@
             <span class="card-title">Azioni</span>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn btn-primary" onclick="syncNow()">🔄 Sync tutto ora</button>
+            <button class="btn btn-primary" data-sync-button onclick="syncNow()">🔄 Aggiorna il registro</button>
             <button class="btn btn-success" onclick="testBroadcast()">📨 Test broadcast tutti</button>
             <button class="btn btn-danger btn-sm" onclick="resetDB()" style="margin-left:auto">🗑️ Reset DB</button>
         </div>
@@ -200,6 +200,7 @@ function toggleToken() {
 
 function getApiBase() {
     // Costruisce il path API rimuovendo '/configurazione' dal pathname
+    if (window.COMPITAPP) return window.COMPITAPP.base;
     const path = window.location.pathname.replace(/\/+$/, '');
     if (path.endsWith('/configurazione')) {
         return path.slice(0, -'/configurazione'.length);

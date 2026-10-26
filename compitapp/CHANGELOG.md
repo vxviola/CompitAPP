@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.2.0 — una nuova dashboard
+
+- Interfaccia ridisegnata: barra laterale su desktop, menu in basso sul telefono, selettore dei figli sempre disponibile, icone vettoriali e date leggibili.
+- Nuova home con compiti di oggi/domani, prossime consegne, ultimi avvisi con conteggio degli allegati, promemoria, voti e lezioni previste per domani dall’orario ricostruito.
+- Bacheca con ricerca nel testo e nei nomi dei documenti, filtro per allegati, periodo e intervallo di date, conteggio dei risultati e pulsanti di download accessibili.
+- Tema automatico, chiaro e scuro, salvato nel browser. Nessun font o libreria caricato da servizi esterni.
+- Calendario, voti, presenze, lezioni e orario aggiornati al nuovo stile, con stati vuoti e navigazione da tastiera.
+- Sincronizzazione manuale in background: la pagina resta utilizzabile, un secondo ciclo non parte mentre il primo è attivo. Stato e ora dell’ultimo ciclo riuscito vengono conservati per studente; in caso di errori si segnala il controllo incompleto.
+- Link e risorse statiche compatibili con i prefissi Ingress di Home Assistant. Nessun trasferimento di impostazioni o database richiesto per aggiornare il fork dalla versione 2.1.1.
+
 ## 2.1.1 — fork vxviola
 
 - Pulsante **Scarica** per ogni allegato della bacheca e per i file della bacheca personale dell’alunno, anche attraverso Ingress di Home Assistant.

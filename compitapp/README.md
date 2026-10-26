@@ -2,7 +2,7 @@
 
 **Questo repository è un fork di [elbarto8383/CompitAPP](https://github.com/elbarto8383/CompitAPP), il progetto originale creato da [elbarto8383](https://github.com/elbarto8383).**
 
-**Grazie a elbarto8383 per aver ideato, sviluppato e condiviso CompitAPP:** il collegamento con Argo, l’app per Home Assistant, le notifiche Telegram e le funzioni del registro presenti in questo fork derivano dal suo lavoro. Questo fork, mantenuto da [vxviola](https://github.com/vxviola), aggiunge il download degli allegati della bacheca.
+**Grazie a elbarto8383 per aver ideato, sviluppato e condiviso CompitAPP:** il collegamento con Argo, l’app per Home Assistant, le notifiche Telegram e le funzioni del registro presenti in questo fork derivano dal suo lavoro. Questo fork, mantenuto da [vxviola](https://github.com/vxviola), aggiunge una nuova dashboard famiglia e il download degli allegati della bacheca.
 
 CompitAPP permette di consultare compiti, voti e comunicazioni del registro DiDUP/Argo ScuolaNext da Home Assistant e di ricevere notifiche su Telegram.
 
@@ -19,9 +19,17 @@ Se vuoi sostenere lo sviluppo di questo fork, puoi offrirmi un caffè tramite Pa
 | Provenienza | Funzioni |
 | --- | --- |
 | **Progetto originale di elbarto8383** | Integrazione Argo, pagina web, compiti, calendario, voti, assenze, lezioni, orario, gestione di più studenti, bot Telegram, sensori e card Home Assistant, accesso SPID/CIE sperimentale |
-| **Aggiunte del fork vxviola — versione 2.1.1** | Pulsante **Scarica** per gli allegati della bacheca, gestione dei file della bacheca personale, aggiornamento dei metadati degli allegati, migrazione del database e test dedicati |
+| **Aggiunte del fork vxviola — versione 2.2.0** | Nuova dashboard, navigazione mobile, tema chiaro/scuro, ricerca e filtri in bacheca, pulsante **Scarica**, stato della sincronizzazione e test dedicati |
 
 Le modifiche sono descritte nel [changelog](CHANGELOG.md). Il codice originale e i relativi crediti restano disponibili nella cronologia Git e nella [licenza MIT](../LICENSE).
+
+## Una nuova dashboard per la famiglia
+
+La versione **2.2.0** mette in primo piano i compiti di domani, le prossime consegne e le comunicazioni della scuola. Il selettore dei figli rimane sempre disponibile. Sul telefono le sezioni principali sono nel menu in basso; su desktop trovi una barra laterale.
+
+La bacheca permette di cercare nei messaggi e nei nomi dei file, filtrare per allegati e scegliere un periodo o un intervallo di date. Il tema può seguire il dispositivo oppure essere impostato su chiaro o scuro. Il pulsante **Aggiorna** lavora in background e mostra l’ora dell’ultimo controllo riuscito o un messaggio se il controllo è incompleto.
+
+Se usi già questo fork, aggiorna l’app dallo store di Home Assistant: **impostazioni e database restano conservati**. Non occorre reinstallare. Dopo l’aggiornamento ricarica la pagina per caricare il nuovo aspetto. [Guida alla dashboard](../docs/dashboard.md).
 
 ## Scaricare i file dalla bacheca
 

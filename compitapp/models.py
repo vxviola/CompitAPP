@@ -163,5 +163,5 @@ def svuota_studente(conn, nome):
     for t in ('compiti', 'voti', 'assenze', 'note_disciplinari', 'bacheca',
               'argomenti', 'promemoria', 'orario', 'lezioni_registro'):
         conn.execute(f'DELETE FROM {t} WHERE studente=?', (nome,))
-    conn.execute("DELETE FROM meta WHERE chiave LIKE ? OR chiave = ?",
-                 (f"storico:%:{nome}", f"media_argo:{nome}"))
+    conn.execute("DELETE FROM meta WHERE chiave LIKE ? OR chiave = ? OR chiave = ?",
+                 (f"storico:%:{nome}", f"media_argo:{nome}", f"sync_ui:{nome}"))

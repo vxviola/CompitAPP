@@ -1,117 +1,81 @@
 {% extends "base.html" %}
+{% from "ui_macros.html" import icon with context %}
 {% block content %}
 <div class="container">
+    <section class="card welcome-card" aria-label="Riepilogo della giornata">
+        <div>
+            <div class="eyebrow">{{ data_oggi }}</div>
+            <h2>La scuola, un passo alla volta.</h2>
+            <p>{% if compiti_domani %}Per domani {{ 'c’è un’attività' if compiti_domani|length == 1 else 'ci sono ' ~ compiti_domani|length ~ ' attività' }} da preparare. Qui trovi quello che serve per organizzarsi con calma.{% else %}Nessun compito assegnato per domani nei dati disponibili. Puoi dare un’occhiata alle prossime scadenze e alle novità della scuola.{% endif %}</p>
+            <div class="welcome-note">{{ icon('leaf', 'sm') }} <span>Uno spazio per {{ ui_studente|title if ui_studente else 'tutta la famiglia' }}.</span></div>
+        </div>
+        <div class="notebook-art" aria-hidden="true"><div class="notebook-paper">{{ icon('leaf') }}</div><span class="art-star">✧</span></div>
+    </section>
 
-    <!-- Stats -->
-    <div class="stat-grid" style="margin-top:16px">
-        <div class="stat-card">
-            <div class="stat-number">{{ compiti_oggi|length }}</div>
-            <div class="stat-label">📚 Compiti oggi</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number">{{ compiti_domani|length }}</div>
-            <div class="stat-label">📅 Compiti domani</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number" style="color:{% if media and media < soglia_voto %}var(--danger){% elif media and media >= 8 %}var(--success){% else %}var(--warning){% endif %}">
-                {{ media if media else 'N/D' }}
-            </div>
-            <div class="stat-label">⭐ Media voti</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number" style="font-size:1.3rem">
-                {% if ultimi_voti %}{{ ultimi_voti[0]['voto'] }}{% else %}—{% endif %}
-            </div>
-            <div class="stat-label">📊 Ultimo voto</div>
-        </div>
+    <div class="overview-grid" aria-label="Il registro in breve">
+        <a href="#attivita" class="overview-card"><div class="overview-label">{{ icon('book') }} Compiti per domani</div><div class="overview-value">{{ compiti_domani|length }}</div><div class="overview-foot">Da preparare per {{ domani|data_breve }}</div>{{ icon('arrow','overview-arrow') }}</a>
+        <a href="{{ ui_link('/voti') }}" class="overview-card"><div class="overview-label">{{ icon('chart') }} Media generale</div><div class="overview-value">{{ ('%.2f'|format(media))|replace('.', ',') if media is not none else '—' }}</div><div class="overview-foot">{{ 'Dal registro scolastico' if media is not none else 'Nessun voto disponibile' }}</div>{{ icon('arrow','overview-arrow') }}</a>
+        <a href="{{ ui_link('/voti') }}" class="overview-card"><div class="overview-label">{{ icon('star') }} Ultimo voto</div><div class="overview-value">{{ ultimi_voti[0]['voto'] if ultimi_voti else '—' }}</div><div class="overview-foot">{{ ultimi_voti[0]['materia']|capitalize if ultimi_voti else 'Il percorso inizia qui' }}</div>{{ icon('arrow','overview-arrow') }}</a>
+        <a href="{{ ui_link('/assenze') }}" class="overview-card"><div class="overview-label">{{ icon('check') }} Assenze</div><div class="overview-value">{{ assenze_mese }}</div><div class="overview-foot">Totale in archivio</div>{{ icon('arrow','overview-arrow') }}</a>
     </div>
 
-    <!-- Compiti oggi -->
-    <div class="card">
-        <div class="card-header">
-            <span style="font-size:1.3rem">📖</span>
-            <span class="card-title">Compiti per oggi</span>
-            {% if compiti_oggi %}<span class="badge badge-primary">{{ compiti_oggi|length }}</span>{% endif %}
-        </div>
-        {% if compiti_oggi %}
-            {% for c in compiti_oggi %}
-            <div class="compito-item">
-                <span class="materia-tag">{{ c['materia'] }}</span>
-                <div class="compito-testo">{{ c['testo'] }}</div>
-            </div>
-            {% endfor %}
-        {% else %}
-            <div class="empty-state">✅ Nessun compito per oggi!</div>
-        {% endif %}
-    </div>
-
-    <!-- Compiti domani -->
-    <div class="card">
-        <div class="card-header">
-            <span style="font-size:1.3rem">🌙</span>
-            <span class="card-title">Compiti per domani</span>
-            {% if compiti_domani %}<span class="badge badge-warning">{{ compiti_domani|length }}</span>{% endif %}
-        </div>
-        {% if compiti_domani %}
-            {% for c in compiti_domani %}
-            <div class="compito-item">
-                <span class="materia-tag">{{ c['materia'] }}</span>
-                <div class="compito-testo">{{ c['testo'] }}</div>
-            </div>
-            {% endfor %}
-        {% else %}
-            <div class="empty-state">🎉 Nessun compito per domani!</div>
-        {% endif %}
-    </div>
-
-    <!-- Prossimi compiti — raggruppati per data senza annidamento -->
-    {% if prossimi %}
-    <div class="card">
-        <div class="card-header">
-            <span style="font-size:1.3rem">📅</span>
-            <span class="card-title">Prossimi compiti</span>
-            <span class="badge badge-primary">{{ prossimi|length }}</span>
-        </div>
-        {% set ns = namespace(data_prec='') %}
-        {% for c in prossimi %}
-            {% if c['data'] != ns.data_prec %}
-                {% if ns.data_prec != '' %}
-                <div style="height:8px"></div>
-                {% endif %}
-                <div style="font-size:0.78rem;color:var(--text-muted);font-weight:700;margin:8px 0 4px;text-transform:uppercase;letter-spacing:0.5px">
-                    📆 {{ c['data'] }}
+    <div class="dashboard-columns">
+        <div>
+            <section class="card" id="attivita">
+                <div class="card-header"><h2 class="card-title">Il diario dei compiti</h2>
+                    <div class="task-tabs" role="tablist" aria-label="Giorno dei compiti">
+                        <button class="task-tab" role="tab" id="tab-oggi" aria-selected="false" aria-controls="tasks-oggi" tabindex="-1" data-task-tab="tasks-oggi">Oggi <span>{{ compiti_oggi|length }}</span></button>
+                        <button class="task-tab active" role="tab" id="tab-domani" aria-selected="true" aria-controls="tasks-domani" data-task-tab="tasks-domani">Domani <span>{{ compiti_domani|length }}</span></button>
+                    </div>
                 </div>
-                {% set ns.data_prec = c['data'] %}
+                {% for key, tasks in [('domani', compiti_domani), ('oggi', compiti_oggi)] %}
+                <div id="tasks-{{ key }}" data-task-panel role="tabpanel" aria-labelledby="tab-{{ key }}" {% if key == 'oggi' %}hidden{% endif %} tabindex="0">
+                    {% for c in tasks %}
+                    <article class="task-row"><div class="subject-icon">{{ icon('book') }}</div><div class="task-details"><h3>{{ c['materia']|capitalize }}</h3><p>{{ c['testo'] }}</p></div><span class="task-date">{{ (domani if key == 'domani' else oggi)|data_breve }}</span></article>
+                    {% else %}<div class="empty-state">{{ icon('leaf') }}<strong>Il diario è libero.</strong>Nessun compito per {{ key }} nei dati disponibili.</div>{% endfor %}
+                </div>
+                {% endfor %}
+                <div style="border-top:1px solid var(--border);padding-top:13px;margin-top:5px"><a class="text-link" href="{{ ui_link('/calendario') }}">Apri il calendario completo {{ icon('arrow','sm') }}</a></div>
+            </section>
+
+            <section class="card">
+                <div class="card-header"><h2 class="card-title">All’orizzonte</h2><span class="subtle">Le prossime consegne</span></div>
+                {% for c in prossimi[:5] %}
+                <div class="upcoming-row"><div class="date-block"><strong>{{ (c['data']|data_breve).split(' ')[0] }}</strong><span>{{ (c['data']|data_breve).split(' ')[1]|default('') }}</span></div><div class="upcoming-content"><strong>{{ c['materia']|capitalize }}</strong><p>{{ c['testo'][:170] }}{{ '…' if c['testo']|length > 170 }}</p></div></div>
+                {% else %}<div class="empty-state">Non ci sono altre consegne in programma nei dati disponibili.</div>{% endfor %}
+            </section>
+
+            {% if promemoria %}
+            <section class="card"><div class="card-header">{{ icon('calendar') }}<h2 class="card-title">Da ricordare</h2></div>
+                {% for p in promemoria[:5] %}<div class="compito-item"><span class="badge badge-warning">{{ p['data']|data_breve }}</span><p class="compito-testo">{{ p['testo'] }}</p>{% if p['docente'] %}<span class="subtle">{{ p['docente'] }}</span>{% endif %}</div>{% endfor %}
+            </section>
             {% endif %}
-            <div class="compito-item">
-                <span class="materia-tag">{{ c['materia'] }}</span>
-                <div class="compito-testo">{{ c['testo'] }}</div>
-            </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-
-    <!-- Ultimi voti -->
-    {% if ultimi_voti %}
-    <div class="card">
-        <div class="card-header">
-            <span style="font-size:1.3rem">⭐</span>
-            <span class="card-title">Ultimi voti</span>
         </div>
-        {% for v in ultimi_voti %}
-        <div class="compito-item" style="display:flex;align-items:center;gap:12px">
-            {% set voto_num = v['voto']|replace(',', '.')|float(-1) %}
-            <div class="voto-chip {% if voto_num >= soglia_voto %}voto-ok{% elif voto_num >= soglia_voto - 1 %}voto-warn{% else %}voto-bad{% endif %}">
-                {{ v['voto'] }}
-            </div>
-            <div>
-                <div style="font-size:0.85rem;font-weight:600">{{ v['materia'] }}</div>
-                <div style="font-size:0.75rem;color:var(--text-muted)">{{ v['data'] }}{% if v['descrizione'] %} — {{ v['descrizione'][:50] }}{% endif %}</div>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
+        <div>
+            <section class="card">
+                <div class="card-header"><h2 class="card-title">Dalla scuola</h2><a class="text-link" href="{{ ui_link('/bacheca') }}">Tutte {{ icon('arrow','sm') }}</a></div>
+                {% for msg in bacheca %}
+                <a class="news-item" href="{{ ui_link('/bacheca') }}#msg-{{ msg['id'] }}">
+                    <div class="news-meta"><span class="badge badge-primary">Comunicazione</span><time datetime="{{ msg['data'] }}">{{ msg['data']|data_breve }}</time></div>
+                    <h3>{{ msg['titolo'] }}</h3>
+                    <div class="news-footer"><span>{% if msg['allegati'] %}{{ icon('paperclip','sm') }} {{ msg['allegati']|length }} {{ 'allegato' if msg['allegati']|length == 1 else 'allegati' }}{% else %}{{ msg['mittente'] or 'Dalla scuola' }}{% endif %}</span>{{ icon('arrow','sm') }}</div>
+                </a>
+                {% else %}<div class="empty-state">{{ icon('board') }}<strong>Ancora nessuna novità.</strong>Le comunicazioni compariranno qui dopo la sincronizzazione.</div>{% endfor %}
+                <a href="{{ ui_link('/bacheca', allegati=1) }}" class="text-link" style="border-top:1px solid var(--border);padding-top:14px;width:100%">{{ icon('paperclip','sm') }} Cerca comunicazioni con allegati {{ icon('arrow','sm') }}</a>
+            </section>
 
+            <section class="card"><div class="card-header"><h2 class="card-title">Piccoli e grandi progressi</h2><a class="text-link" href="{{ ui_link('/voti') }}">{{ icon('arrow','sm') }}<span class="sr-only">Tutti i voti</span></a></div>
+                {% for v in ultimi_voti[:3] %}{% set num = v['voto']|replace(',', '.')|float(-1) %}
+                <div class="grades-row"><div class="voto-chip {{ 'voto-ok' if num >= soglia_voto else 'voto-warn' if num >= soglia_voto - 1 else 'voto-bad' }}">{{ v['voto'] }}</div><div><strong>{{ v['materia']|capitalize }}</strong><span>{{ v['data']|data_breve }}{% if v['descrizione'] %} · {{ v['descrizione'][:65] }}{% endif %}</span></div></div>
+                {% else %}<div class="empty-state">Nessun voto ancora disponibile. Qui troverai i prossimi aggiornamenti.</div>{% endfor %}
+            </section>
+
+            <section class="card"><div class="card-header">{{ icon('clock') }}<h2 class="card-title">Domani in classe</h2><a class="text-link" href="{{ ui_link('/orario') }}">Orario {{ icon('arrow','sm') }}</a></div>
+                {% if orario_domani %}<p class="subtle">Prepara lo zaino per {{ domani|data_breve }}.</p><div class="schedule-strip">{% for lezione in orario_domani %}<span class="schedule-pill"><strong>{{ lezione['ora'] }}ª</strong>{{ lezione['materia']|capitalize }}</span>{% endfor %}</div>
+                {% else %}<p class="subtle">Nessuna lezione nell’orario ricostruito per domani. Controlla il calendario della scuola.</p>{% endif %}
+            </section>
+        </div>
+    </div>
+    <p class="footnote">{{ icon('refresh', 'sm') }}<span id="dashboard-sync">{{ 'Ultimo controllo incompleto' if sync_stato.get('esito') == 'errore' else ('Ultimo aggiornamento · ' ~ sync_etichetta) if sync_etichetta else 'In attesa del primo aggiornamento' }}</span></p>
 </div>
 {% endblock %}

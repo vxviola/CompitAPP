@@ -1,42 +1,35 @@
 {% extends "base.html" %}
+{% from "ui_macros.html" import icon, attachment with context %}
 {% block content %}
-<div class="container" style="margin-top:16px">
-    {% if messaggi %}
+<div class="container">
+    <form class="board-tools" role="search" aria-label="Filtra la bacheca" onsubmit="return false">
+        <label class="search-field">{{ icon('search') }}<span class="sr-only">Cerca nelle comunicazioni</span><input id="board-search" type="search" placeholder="Cerca un avviso, un documento, una parola…" autocomplete="off"></label>
+        <label><span class="sr-only">Periodo</span><select id="board-period" class="filter-select"><option value="all">Tutte le date</option><option value="7">Ultimi 7 giorni</option><option value="30">Ultimi 30 giorni</option><option value="90">Ultimi 90 giorni</option></select></label>
+        <label class="filter-check"><input type="checkbox" id="board-files"> {{ icon('paperclip','sm') }} Solo con allegati</label>
+        <details class="board-date-range"><summary>Intervallo di date</summary><div><label>Dal <input type="date" id="board-from"></label><label>Al <input type="date" id="board-to"></label></div></details>
+    </form>
+    <div class="board-summary"><span id="board-count" role="status" aria-live="polite">{{ messaggi|length }} comunicazioni</span><button class="board-clear" data-reset-filters>Azzera filtri</button></div>
+    <div class="board-grid">
         {% for msg in messaggi %}
-        <div class="card">
-            <div class="card-header">
-                <span style="font-size:1.2rem">📢</span>
-                <div style="flex:1">
-                    <div style="font-weight:700;font-size:0.9rem">{{ msg['titolo'] }}</div>
-                    <div style="font-size:0.75rem;color:var(--text-muted)">
-                        {% if msg['mittente'] %}👤 {{ msg['mittente'] }} — {% endif %}
-                        📅 {{ msg['data'] }}
-                    </div>
-                </div>
-            </div>
+        <article class="card board-card" id="msg-{{ msg['id'] }}" data-board-card data-date="{{ (msg['data'] or '')[:10] }}" data-files="{{ msg['allegati']|length }}">
+            <div class="board-meta"><span class="badge badge-primary">{{ icon('board','sm') }} Dalla scuola</span>{% if msg['allegati'] %}<span>{{ icon('paperclip','sm') }} {{ msg['allegati']|length }}</span>{% endif %}<time datetime="{{ msg['data'] }}">{{ msg['data']|data_breve }}</time></div>
+            <h2>{{ msg['titolo'] }}</h2>
+            {% if msg['mittente'] %}<div class="board-sender">{{ msg['mittente'] }}</div>{% endif %}
             {% if msg['testo'] %}
-            <div style="font-size:0.85rem;color:var(--text);line-height:1.5;white-space:pre-line">{{ msg['testo'] }}</div>
+                {% if msg['testo']|length > 500 %}
+                <p class="board-text">{{ msg['testo'][:500] }}</p><details><summary>Leggi il resto della comunicazione</summary><p class="board-text" style="margin-top:10px">{{ msg['testo'][500:] }}</p></details>
+                {% else %}<p class="board-text">{{ msg['testo'] }}</p>{% endif %}
             {% endif %}
             {% if msg['allegati'] %}
-            <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
-                <div style="font-size:0.8rem;font-weight:600;margin-bottom:8px">📎 Allegati ({{ msg['allegati']|length }})</div>
-                {% for allegato in msg['allegati'] %}
-                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px">
-                    <div style="flex:1;min-width:140px;overflow-wrap:anywhere">
-                        <div style="font-size:0.85rem">{{ allegato['nome'] }}</div>
-                        {% if allegato['descrizione'] %}<div style="font-size:0.75rem;color:var(--text-muted)">{{ allegato['descrizione'] }}</div>{% endif %}
-                    </div>
-                    <a href="./bacheca/{{ msg['id'] }}/allegati/{{ loop.index0 }}?studente={{ studente_sel|urlencode }}"
-                       style="display:inline-block;background:var(--primary);color:white;padding:8px 12px;border-radius:8px;text-decoration:none;font-size:0.8rem;white-space:nowrap"
-                       aria-label="Scarica {{ allegato['nome'] }}">⬇ Scarica</a>
-                </div>
-                {% endfor %}
+            <div class="attachment-list"><div class="attachment-caption">DOCUMENTI DA SCARICARE</div>
+                {% for a in msg['allegati'] %}{{ attachment(msg, a, loop.index0) }}{% endfor %}
             </div>
             {% endif %}
-        </div>
+        </article>
+        {% else %}
+        <div class="card" style="grid-column:1/-1"><div class="empty-state">{{ icon('board') }}<strong>La bacheca è ancora vuota.</strong>Aggiorna il registro per recuperare le comunicazioni della scuola.</div></div>
         {% endfor %}
-    {% else %}
-        <div class="card"><div class="empty-state">📭 Nessuna comunicazione in bacheca</div></div>
-    {% endif %}
+    </div>
+    <div id="board-no-results" class="card" hidden><div class="empty-state">{{ icon('search') }}<strong>Nessuna comunicazione trovata.</strong>Prova un’altra parola oppure modifica il periodo.<br><button class="board-clear" data-reset-filters style="margin-top:12px;min-height:40px">Mostra tutte le comunicazioni</button></div></div>
 </div>
 {% endblock %}

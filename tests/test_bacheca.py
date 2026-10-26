@@ -198,10 +198,12 @@ class RouteTest(DatabaseFixture, unittest.TestCase):
                 html = bacheca()
                 self.assertIn('Scarica Circolare è.pdf', html)
                 import re
-                href = re.search(r'href="(\./bacheca/[^\"]+)"', html).group(1)
+                from html import unescape
+                href = unescape(re.search(r'href="([^\"]*/bacheca/\d+/allegati/\d+[^\"]*)"', html).group(1))
                 self.assertTrue(urljoin('http://localhost' + prefix + '/bacheca', href).startswith(
                     'http://localhost' + prefix + '/bacheca/'))
-                self.assertIn('studente=Anna%20%26%20Leo', href)
+                from urllib.parse import parse_qs, urlsplit
+                self.assertEqual(parse_qs(urlsplit(href).query)['studente'], ['Anna & Leo'])
 
     def test_download_tutti_prefissi(self):
         for prefix in ('', '/addon', '/app/addon', '/api/hassio_ingress/token'):

@@ -1,7 +1,7 @@
 name: "CompitAPP"
-description: "Compiti e voti scolastici via DiDUP/Argo ScuolaNext — notifiche Telegram automatiche"
+description: "Dashboard famiglia per DiDUP/Argo: compiti, voti, bacheca con allegati e notifiche Telegram"
 url: "https://github.com/vxviola/CompitAPP"
-version: "2.1.1"
+version: "2.2.0"
 slug: compitapp
 init: false
 arch:

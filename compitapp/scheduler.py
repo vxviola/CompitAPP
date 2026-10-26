@@ -1,5 +1,7 @@
 import os
 import json
+import threading
+import sync_state
 from datetime import date, datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -59,6 +61,7 @@ def sync_compiti():
                 print(f"[SCHEDULER] Nessun compito nuovo per {nome}")
             _aggiorna_sensori(nome)
         except Exception as e:
+            sync_state.errore(nome)
             print(f"[SCHEDULER] Errore compiti {nome}: {e}")
 
 def _giorni_da_inizio_anno():
@@ -79,6 +82,7 @@ def _prepara(studente, categoria):
     conn.close()
     giorni, silenzioso = (7, False) if fatto else (_giorni_da_inizio_anno(), True)
     if fetch_dashboard(studente, giorni) is None:
+        sync_state.errore(nome)
         return None
     return giorni, silenzioso
 
@@ -122,6 +126,7 @@ def sync_voti():
             conn.commit()
             conn.close()
         except Exception as e:
+            sync_state.errore(nome)
             print(f"[SCHEDULER] Errore voti {nome}: {e}")
 
 def sync_assenze():
@@ -155,6 +160,7 @@ def sync_assenze():
             conn.commit()
             conn.close()
         except Exception as e:
+            sync_state.errore(nome)
             print(f"[SCHEDULER] Errore assenze {nome}: {e}")
 
 def sync_note():
@@ -181,6 +187,7 @@ def sync_note():
             conn.commit()
             conn.close()
         except Exception as e:
+            sync_state.errore(nome)
             print(f"[SCHEDULER] Errore note {nome}: {e}")
 
 def sync_bacheca():
@@ -232,6 +239,7 @@ def sync_bacheca():
             conn.commit()
             conn.close()
         except Exception as e:
+            sync_state.errore(nome)
             print(f"[SCHEDULER] Errore bacheca {nome}: {e}")
 
 def sync_argomenti():
@@ -257,6 +265,7 @@ def sync_argomenti():
             conn.commit()
             conn.close()
         except Exception as e:
+            sync_state.errore(nome)
             print(f"[SCHEDULER] Errore argomenti {nome}: {e}")
 
 def sync_promemoria():
@@ -283,6 +292,7 @@ def sync_promemoria():
             conn.commit()
             conn.close()
         except Exception as e:
+            sync_state.errore(nome)
             print(f"[SCHEDULER] Errore promemoria {nome}: {e}")
 
 def _archivia_lezioni(conn, nome, registro):
@@ -356,10 +366,41 @@ def sync_orario():
             giorni_ok = sorted({s['giorno'] for s in slot})
             print(f"[SCHEDULER] Orario {nome}: {len(slot)} ore su {len(giorni_ok)} giorni della settimana")
         except Exception as e:
+            sync_state.errore(nome)
             print(f"[SCHEDULER] Errore orario {nome}: {e}")
 
 def sync_tutto():
     """Sync completo di tutto"""
+    if not sync_state.inizia():
+        return False
+    return _esegui_sync()
+
+
+def avvia_sync_manuale():
+    if not sync_state.inizia():
+        return False
+    try:
+        threading.Thread(target=_esegui_sync, daemon=True, name='sync-manuale').start()
+    except Exception:
+        sync_state.termina([s.get('nome', 'Studente') for s in get_studenti()], fallito=True)
+        raise
+    return True
+
+
+def _esegui_sync():
+    nomi = [s.get('nome', 'Studente') for s in get_studenti()]
+    fallito = False
+    try:
+        _ciclo_sync()
+    except Exception:
+        fallito = True
+        print('[SCHEDULER] Sincronizzazione interrotta: controllare connessione e configurazione')
+    finally:
+        sync_state.termina(nomi, fallito=fallito)
+    return not fallito
+
+
+def _ciclo_sync():
     sync_compiti()
     sync_voti()
     sync_assenze()

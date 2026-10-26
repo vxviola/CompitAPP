@@ -2,7 +2,7 @@ import sys
 import os
 import json
 from urllib.parse import urlencode
-from flask import Flask, render_template, jsonify, request, send_file, abort
+from flask import Flask, render_template, jsonify, request, send_file, abort, send_from_directory
 from datetime import date, timedelta
 from models import init_db, get_db, media_argo
 from argo_client import get_studenti, link_allegato_bacheca
@@ -15,6 +15,21 @@ from bot import avvia_bot
 
 app = Flask(__name__)
 
+from ui import contesto_ui, data_leggibile, base_ingress
+import sync_state
+app.jinja_env.filters['data_breve'] = data_leggibile
+
+
+@app.context_processor
+def ui_context():
+    studenti = get_studenti()
+    return contesto_ui(studenti, sync_state.leggi(_sel(studenti)))
+
+
+@app.route('/<path:prefix>/static/<path:filename>')
+def ingress_static(prefix, filename):
+    return send_from_directory(app.static_folder, filename)
+
 def _maschera_token(token):
     """Mostra solo i primi 10 caratteri del token"""
     if not token:
@@ -25,7 +40,9 @@ def _maschera_token(token):
     return token[:6] + '*' * (len(token) - 6)
 
 def _sel(studenti):
-    return request.args.get('studente', studenti[0]['nome'] if studenti else '')
+    nomi = [s['nome'] for s in studenti]
+    scelto = request.args.get('studente')
+    return scelto if scelto in nomi else (nomi[0] if nomi else '')
 
 def _media(voti):
     valori = []
@@ -70,11 +87,14 @@ def index():
     prossimi       = conn.execute('SELECT * FROM compiti WHERE studente=? AND data>? ORDER BY data,materia LIMIT 30', (sel, domani)).fetchall()
     ultimi_voti    = conn.execute('SELECT * FROM voti WHERE studente=? ORDER BY data DESC, id DESC LIMIT 5', (sel,)).fetchall()
     tutti_voti     = conn.execute('SELECT voto FROM voti WHERE studente=?', (sel,)).fetchall()
-    bacheca        = conn.execute('SELECT * FROM bacheca WHERE studente=? ORDER BY data DESC LIMIT 3', (sel,)).fetchall()
+    bacheca        = conn.execute('SELECT * FROM bacheca WHERE studente=? ORDER BY data DESC,id DESC LIMIT 3', (sel,)).fetchall()
     promemoria     = conn.execute('SELECT * FROM promemoria WHERE studente=? AND data>=? ORDER BY data', (sel, oggi)).fetchall()
     assenze_tot    = conn.execute("SELECT COUNT(*) as n FROM assenze WHERE studente=? AND tipo='A'", (sel,)).fetchone()['n']
     ma             = media_argo(conn, sel)
+    orario_domani  = conn.execute('SELECT * FROM orario WHERE studente=? AND giorno=? ORDER BY ora',
+                                 (sel, (date.today() + timedelta(days=1)).weekday())).fetchall()
     conn.close()
+    bacheca = [dict(m, allegati=leggi_allegati(m['allegati'])) for m in bacheca]
     tutti_voti     = [v for v in tutti_voti if str(v['voto']).strip() not in ('0', '0.0', '0,0', 'N', '')]
     media          = ma['generale'] if ma and ma['generale'] is not None else _media(tutti_voti)
     return render_template('index.html',
@@ -82,7 +102,7 @@ def index():
         compiti_oggi=compiti_oggi, compiti_domani=compiti_domani,
         prossimi=prossimi, ultimi_voti=ultimi_voti,
         bacheca=bacheca, promemoria=promemoria, assenze_mese=assenze_tot,
-        media=media, oggi=oggi, domani=domani,
+        media=media, oggi=oggi, domani=domani, orario_domani=orario_domani,
         soglia_voto=float(os.environ.get('SOGLIA_VOTO', 7))
     )
 
@@ -154,7 +174,7 @@ def download_allegato(messaggio_id, indice, prefix=None):
         file = scarica_file(url)
     except Exception:
         # Le eccezioni HTTP possono contenere URL firmati: non inserirle nei log.
-        bacheca_url = request.path.rsplit('/bacheca/', 1)[0] + '/bacheca?' + urlencode({'studente': sel})
+        bacheca_url = base_ingress() + '/bacheca?' + urlencode({'studente': sel})
         return render_template('errore_allegato.html', studenti=studenti,
                                studente_sel=sel, bacheca_url=bacheca_url), 502
     risposta = send_file(file, as_attachment=True,
@@ -268,9 +288,18 @@ def configurazione():
 
 @app.route('/api/sync', methods=['POST'])
 def api_sync():
-    from scheduler import sync_tutto
-    sync_tutto()
-    return jsonify({'ok': True})
+    from scheduler import avvia_sync_manuale
+    if not get_studenti():
+        return jsonify({'ok': False, 'errore': 'Configura almeno uno studente nelle opzioni dell’app.'}), 400
+    if not avvia_sync_manuale():
+        return jsonify({'ok': False, 'errore': 'Una sincronizzazione è già in corso.'}), 409
+    return jsonify({'ok': True, 'in_corso': True}), 202
+
+
+@app.route('/api/sync-status')
+@app.route('/<path:prefix>/api/sync-status')
+def api_sync_status(prefix=None):
+    return jsonify(sync_state.leggi(_sel(get_studenti())))
 
 @app.route('/api/test-connessione', methods=['POST'])
 def api_test_connessione():
@@ -334,7 +363,7 @@ def api_reset_db():
         for tabella in ['compiti','voti','assenze','note_disciplinari','bacheca','argomenti','promemoria','orario','lezioni_registro']:
             conn.execute(f'DELETE FROM {tabella}')
         # senza questo, dopo lo svuotamento l'app rileggeva solo gli ultimi 7 giorni
-        conn.execute("DELETE FROM meta WHERE chiave LIKE 'storico:%' OR chiave LIKE 'media_argo:%'")
+        conn.execute("DELETE FROM meta WHERE chiave LIKE 'storico:%' OR chiave LIKE 'media_argo:%' OR chiave LIKE 'sync_ui:%'")
         conn.commit()
         conn.close()
         return jsonify({'ok': True})
@@ -353,13 +382,12 @@ def api_stats():
     tot_voti   = conn.execute('SELECT COUNT(*) as n FROM voti WHERE studente=?', (sel,)).fetchone()['n']
     tot_ass    = conn.execute('SELECT COUNT(*) as n FROM assenze WHERE studente=?', (sel,)).fetchone()['n']
     tot_bach   = conn.execute('SELECT COUNT(*) as n FROM bacheca WHERE studente=?', (sel,)).fetchone()['n']
-    ultimo     = conn.execute("SELECT creato_il FROM compiti WHERE studente=? ORDER BY id DESC LIMIT 1", (sel,)).fetchone()
     conn.close()
     return jsonify({
         'compiti_oggi': n_oggi, 'compiti_domani': n_domani,
         'totale_compiti': tot_comp, 'totale_voti': tot_voti,
         'totale_assenze': tot_ass, 'totale_bacheca': tot_bach,
-        'ultimo_sync': ultimo['creato_il'] if ultimo else 'Mai'
+        'ultimo_sync': sync_state.leggi(sel).get('ultimo_successo') or 'In attesa del primo controllo completo'
     })
 
 # Route API — prefisso /app/<slug>/
@@ -407,20 +435,29 @@ def slug_api_reset(slug): return api_reset_db()
 # Route pagine — prefisso /<slug>/
 @app.route('/<slug>/')
 @app.route('/<slug>')
+@app.route('/app/<slug>/')
+@app.route('/app/<slug>')
 def slug_home(slug): return index()
 @app.route('/<slug>/calendario')
+@app.route('/app/<slug>/calendario')
 def slug_calendario(slug): return calendario()
 @app.route('/<slug>/voti')
+@app.route('/app/<slug>/voti')
 def slug_voti(slug): return voti()
 @app.route('/<slug>/orario')
+@app.route('/app/<slug>/orario')
 def slug_orario(slug): return orario()
 @app.route('/<slug>/bacheca')
+@app.route('/app/<slug>/bacheca')
 def slug_bacheca(slug): return bacheca()
 @app.route('/<slug>/assenze')
+@app.route('/app/<slug>/assenze')
 def slug_assenze(slug): return assenze()
 @app.route('/<slug>/argomenti')
+@app.route('/app/<slug>/argomenti')
 def slug_argomenti(slug): return argomenti()
 @app.route('/<slug>/configurazione')
+@app.route('/app/<slug>/configurazione')
 def slug_configurazione(slug): return configurazione()
 
 # Route pagine — prefisso /api/hassio_ingress/<token>/
