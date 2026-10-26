@@ -364,17 +364,31 @@ def fetch_note(studente, giorni=0):
         print(f"[ARGO] Errore parsing note: {e}")
         return []
 
-def _msg_bacheca(msg):
+def _msg_bacheca(msg, tipo='bacheca'):
     testo = _pick(msg, 'messaggio', 'desMessaggio')
     titolo = _pick(msg, 'desOggetto', 'titolo', 'oggetto', 'categoria')
     if not titolo:
         titolo = (str(testo).strip().splitlines() or [''])[0][:80] or 'Comunicazione'
+    allegati = []
+    for a in msg.get('listaAllegati') or []:
+        if not isinstance(a, dict):
+            continue
+        pk = _pick(a, 'pk', 'uid')
+        if pk:
+            allegati.append({'uid': str(pk), 'nome': str(a.get('nomeFile') or 'Allegato'),
+                             'descrizione': str(a.get('descrizioneFile') or ''), 'tipo': tipo})
+    # La bacheca personale contiene direttamente il file, senza listaAllegati.
+    if tipo == 'alunno' and msg.get('nomeFile') and _pick(msg, 'pk', 'uid'):
+        allegati.append({'uid': str(_pick(msg, 'pk', 'uid')), 'nome': str(msg['nomeFile']),
+                         'descrizione': '', 'tipo': tipo})
     return {
         'data': _pick(msg, 'data', 'datPubblicazione'),
         'titolo': titolo,
         'testo': testo,
         'mittente': _pick(msg, 'autore', 'desMittente'),
-        'uid': str(_pick(msg, 'pk', 'uid'))
+        'uid': str(_pick(msg, 'pk', 'uid')),
+        'allegati': allegati,
+        'eliminato': msg.get('operazione') == 'D',
     }
 
 def fetch_bacheca(studente, giorni=0):
@@ -388,11 +402,43 @@ def fetch_bacheca(studente, giorni=0):
         for sezione in dati:
             for chiave in ('bacheca', 'bachecaAlunno'):
                 for msg in sezione.get(chiave, []) or []:
-                    bacheca.append(_msg_bacheca(msg))
+                    bacheca.append(_msg_bacheca(msg, 'alunno' if chiave == 'bachecaAlunno' else 'bacheca'))
         return bacheca
     except Exception as e:
         print(f"[ARGO] Errore parsing bacheca: {e}")
         return []
+
+def link_allegato_bacheca(studente, allegato):
+    """Richiede ad Argo un link nuovo a ogni click, usando il profilo selezionato.
+
+    Endpoint e payload sono quelli usati da argofamiglia.getDocumentUrl e
+    portaleargo-api.getLinkAllegatoStudente. Non conferma la presa visione.
+    """
+    nome = studente.get('nome', 'default')
+    for tentativo in range(2):
+        session = get_session(studente)
+        if session is None:
+            raise RuntimeError('Sessione Argo non disponibile')
+        headers = session._ArgoFamiglia__headers
+        payload = {'uid': allegato['uid']}
+        endpoint = 'downloadallegatobacheca'
+        try:
+            if allegato.get('tipo') == 'alunno':
+                profilo = requests.get(ENDPOINT + 'profilo', headers=headers, timeout=30)
+                profilo.raise_for_status()
+                payload['pkScheda'] = profilo.json()['data']['scheda']['pk']
+                endpoint = 'downloadallegatobachecaalunno'
+            risposta = requests.post(ENDPOINT + endpoint, headers=headers,
+                                     json=payload, timeout=30)
+            risposta.raise_for_status()
+            dati = risposta.json()
+            if dati.get('success') is False or not dati.get('url'):
+                raise ValueError('Link Argo non disponibile')
+            return dati['url']
+        except (requests.RequestException, ValueError, KeyError):
+            _reset_session(nome)
+            if tentativo:
+                raise RuntimeError('Download Argo non disponibile') from None
 
 def fetch_argomenti(studente, giorni=0):
     """Estrae argomenti lezione dalla dashboard"""

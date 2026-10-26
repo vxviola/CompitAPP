@@ -1,10 +1,12 @@
 import sys
 import os
 import json
-from flask import Flask, render_template, jsonify, request
+from urllib.parse import urlencode
+from flask import Flask, render_template, jsonify, request, send_file, abort
 from datetime import date, timedelta
 from models import init_db, get_db, media_argo
-from argo_client import get_studenti
+from argo_client import get_studenti, link_allegato_bacheca
+from allegati import leggi_allegati, nome_download, scarica_file
 from orario_utils import GIORNI, anno_scolastico, stile_materia, etichetta_breve
 
 # Redirect errori su stdout per vederli nei log HA
@@ -126,7 +128,42 @@ def bacheca():
     conn = get_db()
     msgs = conn.execute('SELECT * FROM bacheca WHERE studente=? ORDER BY data DESC', (sel,)).fetchall()
     conn.close()
+    msgs = [dict(msg, allegati=leggi_allegati(msg['allegati'])) for msg in msgs]
     return render_template('bacheca.html', messaggi=msgs, studenti=studenti, studente_sel=sel)
+
+@app.route('/bacheca/<int:messaggio_id>/allegati/<int:indice>')
+@app.route('/<path:prefix>/bacheca/<int:messaggio_id>/allegati/<int:indice>')
+def download_allegato(messaggio_id, indice, prefix=None):
+    studenti = get_studenti()
+    sel = request.args.get('studente', '')
+    studente = next((s for s in studenti if s['nome'] == sel), None)
+    if studente is None:
+        abort(404)
+    conn = get_db()
+    try:
+        msg = conn.execute('SELECT allegati FROM bacheca WHERE id=? AND studente=?',
+                           (messaggio_id, sel)).fetchone()
+    finally:
+        conn.close()
+    allegati = leggi_allegati(msg['allegati']) if msg else []
+    if indice >= len(allegati):
+        abort(404)
+    allegato = allegati[indice]
+    try:
+        url = link_allegato_bacheca(studente, allegato)
+        file = scarica_file(url)
+    except Exception:
+        # Le eccezioni HTTP possono contenere URL firmati: non inserirle nei log.
+        bacheca_url = request.path.rsplit('/bacheca/', 1)[0] + '/bacheca?' + urlencode({'studente': sel})
+        return render_template('errore_allegato.html', studenti=studenti,
+                               studente_sel=sel, bacheca_url=bacheca_url), 502
+    risposta = send_file(file, as_attachment=True,
+                         download_name=nome_download(allegato.get('nome')),
+                         mimetype='application/octet-stream', max_age=0)
+    risposta.headers['Cache-Control'] = 'private, no-store'
+    risposta.headers['X-Content-Type-Options'] = 'nosniff'
+    risposta.call_on_close(file.close)
+    return risposta
 
 @app.route('/assenze')
 def assenze():

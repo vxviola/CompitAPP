@@ -188,7 +188,8 @@ def sync_bacheca():
     for studente in get_studenti():
         nome = studente.get('nome', 'Studente')
         try:
-            prep = _prepara(studente, 'bacheca')
+            # Una nuova chiave rilegge anche gli allegati degli avvisi già salvati.
+            prep = _prepara(studente, 'bacheca_allegati')
             if prep is None:
                 continue
             giorni, silenzioso = prep
@@ -202,21 +203,31 @@ def sync_bacheca():
                 testo = msg.get('testo','')
                 mittente = msg.get('mittente','')
                 data_str = msg.get('data','')
+                if msg.get('eliminato'):
+                    if uid:
+                        conn.execute('DELETE FROM bacheca WHERE studente=? AND uid=?', (nome, uid))
+                    continue
+                allegati = json.dumps(msg.get('allegati', []), ensure_ascii=False)
                 if titolo:
                     # Usa uid come chiave univoca se disponibile, altrimenti titolo+data
-                    exists = False
+                    esistente = None
                     if uid:
-                        exists = conn.execute('SELECT id FROM bacheca WHERE uid=?', (uid,)).fetchone() is not None
+                        esistente = conn.execute('SELECT id FROM bacheca WHERE studente=? AND uid=?', (nome, uid)).fetchone()
                     else:
-                        exists = _esiste(conn, 'bacheca', nome, titolo=titolo[:200], data=data_str)
-                    if not exists:
-                        conn.execute('INSERT INTO bacheca (studente,data,titolo,testo,mittente,uid,notificato) VALUES (?,?,?,?,?,?,?)',
-                                     (nome, data_str, titolo[:500], testo[:2000], mittente, uid, 1 if silenzioso else 0))
+                        esistente = conn.execute('SELECT id FROM bacheca WHERE studente=? AND titolo=? AND data=?',
+                                                 (nome, titolo[:500], data_str)).fetchone()
+                    if esistente:
+                        conn.execute('UPDATE bacheca SET data=?,titolo=?,testo=?,mittente=?,allegati=? WHERE id=?',
+                                     (data_str, titolo[:500], testo[:2000], mittente, allegati, esistente['id']))
+                    else:
+                        conn.execute('INSERT INTO bacheca (studente,data,titolo,testo,mittente,uid,allegati,notificato) VALUES (?,?,?,?,?,?,?,?)',
+                                     (nome, data_str, titolo[:500], testo[:2000], mittente, uid or None, allegati, 1 if silenzioso else 0))
                         nuovi += 1
                         if not silenzioso:
                             notifica_bacheca(nome, titolo, testo, mittente)
             if silenzioso:
                 _storico_fatto(conn, 'bacheca', nome)
+                _storico_fatto(conn, 'bacheca_allegati', nome)
                 print(f"[SCHEDULER] Bacheca {nome}: caricato lo storico ({nuovi}), senza notifiche")
             conn.commit()
             conn.close()

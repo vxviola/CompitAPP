@@ -50,10 +50,13 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS bacheca (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         studente TEXT NOT NULL DEFAULT 'default',
-        data TEXT, titolo TEXT, testo TEXT, mittente TEXT, uid TEXT UNIQUE,
+        data TEXT, titolo TEXT, testo TEXT, mittente TEXT, uid TEXT,
+        allegati TEXT NOT NULL DEFAULT '[]',
         notificato INTEGER DEFAULT 0,
-        creato_il TEXT DEFAULT (datetime('now','localtime'))
+        creato_il TEXT DEFAULT (datetime('now','localtime')),
+        UNIQUE (studente, uid)
     )''')
+    _migra_bacheca(conn)
 
     c.execute('''CREATE TABLE IF NOT EXISTS argomenti (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -93,6 +96,35 @@ def init_db():
     conn.commit()
     conn.close()
     print("[DB] Inizializzato correttamente")
+
+
+def _migra_bacheca(conn):
+    """Conserva le comunicazioni esistenti e permette lo stesso avviso per più figli."""
+    colonne = {r['name'] for r in conn.execute('PRAGMA table_info(bacheca)')}
+    if 'allegati' not in colonne:
+        conn.execute("ALTER TABLE bacheca ADD COLUMN allegati TEXT NOT NULL DEFAULT '[]'")
+    uid_globale = False
+    for indice in conn.execute('PRAGMA index_list(bacheca)').fetchall():
+        if not indice['unique']:
+            continue
+        nome = indice['name'].replace('"', '""')
+        campi = [r['name'] for r in conn.execute(f'PRAGMA index_info("{nome}")')]
+        uid_globale |= campi == ['uid']
+    if uid_globale:
+        conn.execute('''CREATE TABLE bacheca_migrazione (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            studente TEXT NOT NULL DEFAULT 'default',
+            data TEXT, titolo TEXT, testo TEXT, mittente TEXT, uid TEXT,
+            allegati TEXT NOT NULL DEFAULT '[]', notificato INTEGER DEFAULT 0,
+            creato_il TEXT DEFAULT (datetime('now','localtime')),
+            UNIQUE (studente, uid)
+        )''')
+        conn.execute('''INSERT INTO bacheca_migrazione
+            (id,studente,data,titolo,testo,mittente,uid,allegati,notificato,creato_il)
+            SELECT id,studente,data,titolo,testo,mittente,NULLIF(uid,''),allegati,notificato,creato_il
+            FROM bacheca''')
+        conn.execute('DROP TABLE bacheca')
+        conn.execute('ALTER TABLE bacheca_migrazione RENAME TO bacheca')
 
 
 def _num(v):

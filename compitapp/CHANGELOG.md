@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.1 — fork vxviola
+
+- Pulsante **Scarica** per ogni allegato della bacheca e per i file della bacheca personale dell’alunno, anche attraverso Ingress di Home Assistant.
+- Gli identificativi dei file vengono salvati nel database; il link temporaneo viene richiesto ad Argo al momento del download con la sessione del figlio corretto. Nessuna conferma automatica di presa visione o adesione.
+- Aggiornamento automatico del database e rilettura iniziale dell’anno scolastico per recuperare gli allegati degli avvisi esistenti, senza duplicare notifiche. Le comunicazioni condivise tra più figli vengono conservate per ciascuno.
+- Download fino a 50 MB, senza inoltrare token Argo al browser o all’archivio file. Gli avvisi ritirati da Argo vengono rimossi alla sincronizzazione.
+
 ## 2.1.0
 
 - **Accesso con SPID/CIE (sperimentale).** Per le scuole che hanno tolto l'accesso con utente e password. Nella configurazione dello studente scegli `accesso: spid` (username e password non servono), poi apri la pagina **Configurazione → Collega con SPID**: l'app genera un link, tu accedi con SPID da un computer, copi l'indirizzo finale e lo incolli. Da lì in poi l'app rinnova da sola l'accesso e salva ogni nuovo token di rinnovo subito, in uno spazio privato dell'add-on. Se Argo rifiuta il rinnovo, lo studente risulta «da ricollegare» e i genitori ricevono un solo avviso su Telegram. Non ancora provato a lungo su un account reale: per ora è sperimentale e non si sa quanto duri la catena di rinnovi oltre i 4 giorni circa verificati.
