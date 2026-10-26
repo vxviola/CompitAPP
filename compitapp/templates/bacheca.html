@@ -17,6 +17,22 @@
             {% if msg['testo'] %}
             <div style="font-size:0.85rem;color:var(--text);line-height:1.5;white-space:pre-line">{{ msg['testo'] }}</div>
             {% endif %}
+            {% if msg['allegati'] %}
+            <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
+                <div style="font-size:0.8rem;font-weight:600;margin-bottom:8px">📎 Allegati ({{ msg['allegati']|length }})</div>
+                {% for allegato in msg['allegati'] %}
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px">
+                    <div style="flex:1;min-width:140px;overflow-wrap:anywhere">
+                        <div style="font-size:0.85rem">{{ allegato['nome'] }}</div>
+                        {% if allegato['descrizione'] %}<div style="font-size:0.75rem;color:var(--text-muted)">{{ allegato['descrizione'] }}</div>{% endif %}
+                    </div>
+                    <a href="./bacheca/{{ msg['id'] }}/allegati/{{ loop.index0 }}?studente={{ studente_sel|urlencode }}"
+                       style="display:inline-block;background:var(--primary);color:white;padding:8px 12px;border-radius:8px;text-decoration:none;font-size:0.8rem;white-space:nowrap"
+                       aria-label="Scarica {{ allegato['nome'] }}">⬇ Scarica</a>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
         {% endfor %}
     {% else %}

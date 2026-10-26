@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container" style="margin-top:16px">
+    <div class="card" role="alert">
+        <h2 style="font-size:1rem;margin-bottom:12px">Download non riuscito</h2>
+        <p style="font-size:0.9rem;line-height:1.5">Argo non ha reso disponibile il file. Può essere scaduto o temporaneamente non raggiungibile. Sono supportati file fino a 50 MB.</p>
+        <p style="margin-top:12px;font-size:0.9rem">Torna alla bacheca e riprova. Se il problema continua, verifica il file nell’app DiDUP e la connessione Argo in Configurazione.</p>
+        <p style="margin-top:16px"><a href="{{ bacheca_url }}">← Torna alla bacheca</a></p>
+    </div>
+</div>
+{% endblock %}
