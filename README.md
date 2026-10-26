@@ -8,6 +8,10 @@ CompitAPP permette di consultare compiti, voti e comunicazioni del registro DiDU
 
 [![Aggiungi questo fork a Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fvxviola%2FCompitAPP)
 
+[☕ Offrimi un caffè su PayPal](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=vxviola%40gmail.com&item_name=Supporto%20al%20fork%20CompitAPP&currency_code=EUR)
+
+Se vuoi sostenere lo sviluppo di questo fork, puoi offrirmi un caffè tramite PayPal all’indirizzo **vxviola@gmail.com**.
+
 > Progetto della comunità, non ufficiale e non affiliato ad Argo Software. Per le comunicazioni ufficiali della scuola continua a fare riferimento a DiDUP.
 
 ## Progetto originale e contributo di questo fork
