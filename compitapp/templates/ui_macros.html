@@ -15,6 +15,14 @@
 <div class="attachment">
     {{ file_icon(a['nome']) }}
     <div class="attachment-info"><strong>{{ a['nome'] }}</strong>{% if a.get('descrizione') %}<span>{{ a['descrizione'] }}</span>{% endif %}</div>
+    <label class="read-check"><input type="checkbox" data-file-read="{{ msg['id'] }}/{{ index }}" {% if a.get('letto') %}checked{% endif %} aria-label="Segna come letto {{ a['nome'] }}"><span>Letto</span></label>
     <a class="download-btn" data-attachment data-filename="{{ a['nome'] }}" href="{{ ui_link('/bacheca/' ~ msg['id'] ~ '/allegati/' ~ index) }}" aria-label="Scarica {{ a['nome'] }}">{{ icon('download') }}<span>Scarica</span></a>
 </div>
+{%- endmacro %}
+
+{% macro task(c) -%}
+<article class="task-row {{ 'is-complete' if c['completato'] }}" id="compito-{{ c['id'] }}" data-task-row>
+    <input class="task-check" type="checkbox" data-task-done="{{ c['id'] }}" {% if c['completato'] %}checked{% endif %} aria-label="Completato: {{ c['materia'] }} — {{ c['testo'][:70] }}">
+    <div class="task-details"><h3>{{ c['materia']|capitalize }}</h3><p>{{ c['testo'] }}</p><span class="task-status">{{ 'Completato' if c['completato'] else 'Da fare' }}</span></div>
+</article>
 {%- endmacro %}

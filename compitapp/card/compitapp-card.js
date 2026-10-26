@@ -15,7 +15,7 @@ if (customElements.get('uniscuola-card')) return;
  *   addon_slug: ee1c5e4d_compitapp  # facoltativo se c’è una sola UniScuola nella barra laterale
  *   theme: auto                   # auto, light, dark
  */
-const UNISCUOLA_CARD_VERSION = '2.3.0';
+const UNISCUOLA_CARD_VERSION = '2.4.0';
 
 const _slug = (n) => String(n || '').toLowerCase().replace(/ /g, '_');
 const _esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -217,7 +217,7 @@ class CompitappCard extends HTMLElement {
     if (!e) corpo = vuoto('Sensore non trovato. Controlla il nome dello studente nella card.');
     else if (t.key === 'compiti_oggi' || t.key === 'compiti_domani') {
       const l = a.elenco || [];
-      corpo = l.length ? l.map((c) => `<div class="riga"><div class="mat">${_esc(c.materia)}</div><div class="txt">${_esc(c.testo)}</div></div>`).join('')
+      corpo = l.length ? l.map((c) => `<div class="riga"><div class="mat">${_esc(c.materia)}${c.completato ? ' · Completato' : ''}</div><div class="txt">${_esc(c.testo)}</div></div>`).join('')
         : vuoto(t.key === 'compiti_oggi' ? 'Nessun compito per oggi 🎉' : 'Nessun compito per domani 🎉');
     } else if (t.key === 'ultimo_voto') {
       const l = a.elenco || [];

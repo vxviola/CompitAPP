@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "ui_macros.html" import icon with context %}
+{% from "ui_macros.html" import icon, task with context %}
 {% block content %}
 <div class="container">
     <div class="board-summary"><span>Consegne del periodo disponibile</span><label class="filter-check"><input type="checkbox" id="mostra-passati" onchange="filtraCompiti()">Mostra anche i compiti passati</label></div>
@@ -7,7 +7,7 @@
         {% for gruppo in compiti|groupby('data') %}
         <section class="card gruppo-data" data-passato="{{ 'true' if gruppo.grouper < oggi else 'false' }}" {% if gruppo.grouper < oggi %}hidden{% endif %}>
             <div class="card-header">{{ icon('calendar') }}<h2 class="card-title">{{ gruppo.grouper|data_breve(true) }}</h2>{% if gruppo.grouper == oggi %}<span class="badge badge-primary">Oggi</span>{% endif %}<span class="badge badge-warning">{{ gruppo.list|length }} attività</span></div>
-            {% for c in gruppo.list %}<article class="task-row"><div class="subject-icon">{{ icon('book') }}</div><div class="task-details"><h3>{{ c['materia']|capitalize }}</h3><p>{{ c['testo'] }}</p></div></article>{% endfor %}
+            {% for c in gruppo.list %}{{ task(c) }}{% endfor %}
         </section>
         {% endfor %}
     </div>
@@ -21,5 +21,6 @@ function filtraCompiti(){
     document.getElementById('calendar-empty').hidden=visibili>0;
 }
 filtraCompiti();
+if(location.hash.startsWith('#compito-') && document.getElementById(location.hash.slice(1))){document.getElementById('mostra-passati').checked=true;filtraCompiti();}
 </script>
 {% endblock %}

@@ -16,7 +16,7 @@ Nella Bacheca puoi cercare parole del titolo, del messaggio, del mittente e dei 
 
 ## Tema e telefono
 
-Il pulsante del tema passa tra Automatico, Chiaro e Scuro. La preferenza è salvata solo nel browser; Automatico segue le impostazioni del dispositivo. Sul telefono quattro sezioni principali sono nel menu in basso; Altro contiene Orario, Presenze, Lezioni e Impostazioni. I comandi funzionano anche da tastiera e il contenuto è consultabile senza richieste a CDN, librerie o servizi di font.
+Il pulsante del tema passa tra Automatico, Chiaro e Scuro. La preferenza è salvata solo nel browser; Automatico segue le impostazioni del dispositivo. Sul telefono quattro sezioni principali sono nel menu in basso; Altro contiene anche Orario, Presenze, Lezioni, Prepara lo zaino, Ricerca e Impostazioni. I comandi funzionano anche da tastiera e il contenuto è consultabile senza richieste a CDN, librerie o servizi di font.
 
 ## Aggiornamento del registro
 
@@ -29,3 +29,7 @@ La prima esecuzione dopo l’aggiornamento salva il nuovo stato. I dettagli sono
 ## Verifica
 
 La suite locale copre le pagine con e senza dati, la separazione tra studenti, gli URL diretti e Ingress, le risorse statiche, l’escape del testo della scuola e gli esiti della sincronizzazione. La verifica nel browser usa dati dimostrativi e controlla ricerca, filtri combinati, download, cambio studente, schede dei compiti e navigazione mobile. I test non accedono a un registro reale.
+
+## Funzioni personali dalla 2.4.0
+
+Compiti completati, zaino, letture dei documenti, preferiti, promemoria e notifiche HA sono descritti nella [guida alla versione 2.4](funzioni-2.4.md). Le preferenze sono separate per figlio e salvate nel database locale.

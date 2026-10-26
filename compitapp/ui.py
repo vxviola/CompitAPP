@@ -53,8 +53,10 @@ def contesto_ui(studenti, stato):
         'assenze': ('Presenze e assenze', 'Assenze, ritardi e giustificazioni.'),
         'argomenti': ('Lezioni', 'Quello che si impara, giorno dopo giorno.'),
         'configurazione': ('Impostazioni', 'Collegamenti e preferenze della famiglia.'),
+        'zaino': ('Prepara lo zaino', 'Un piccolo controllo, per partire più tranquilli.'),
+        'ricerca': ('Cerca nel registro', 'Compiti, lezioni e documenti: trova quello che ti serve.'),
     }
-    endpoint = (request.endpoint or 'index').removeprefix('slug_').removeprefix('hassio_')
+    endpoint = (request.endpoint or 'index').rsplit('.', 1)[-1].removeprefix('slug_').removeprefix('hassio_')
     if endpoint == 'home':
         endpoint = 'index'
     titolo, sottotitolo = pagine.get(endpoint, ('UniScuola', 'La scuola, con un po’ più di calma.'))

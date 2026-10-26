@@ -6,14 +6,17 @@
         <label class="search-field">{{ icon('search') }}<span class="sr-only">Cerca nelle comunicazioni</span><input id="board-search" type="search" placeholder="Cerca un avviso, un documento, una parola…" autocomplete="off"></label>
         <label><span class="sr-only">Periodo</span><select id="board-period" class="filter-select"><option value="all">Tutte le date</option><option value="7">Ultimi 7 giorni</option><option value="30">Ultimi 30 giorni</option><option value="90">Ultimi 90 giorni</option></select></label>
         <label class="filter-check"><input type="checkbox" id="board-files"> {{ icon('paperclip','sm') }} Solo con allegati</label>
+        <label class="filter-check"><input type="checkbox" id="board-unread">Da leggere</label>
+        <label class="filter-check"><input type="checkbox" id="board-starred">Preferiti</label>
         <details class="board-date-range"><summary>Intervallo di date</summary><div><label>Dal <input type="date" id="board-from"></label><label>Al <input type="date" id="board-to"></label></div></details>
     </form>
     <div class="board-summary"><span id="board-count" role="status" aria-live="polite">{{ messaggi|length }} comunicazioni</span><button class="board-clear" data-reset-filters>Azzera filtri</button></div>
     <div class="board-grid">
         {% for msg in messaggi %}
-        <article class="card board-card" id="msg-{{ msg['id'] }}" data-board-card data-date="{{ (msg['data'] or '')[:10] }}" data-files="{{ msg['allegati']|length }}">
+        <article class="card board-card" id="msg-{{ msg['id'] }}" data-board-card data-date="{{ (msg['data'] or '')[:10] }}" data-files="{{ msg['allegati']|length }}" data-starred="{{ '1' if msg['preferito'] else '0' }}" data-unread="{{ '1' if msg['da_leggere'] else '0' }}">
             <div class="board-meta"><span class="badge badge-primary">{{ icon('board','sm') }} Dalla scuola</span>{% if msg['allegati'] %}<span>{{ icon('paperclip','sm') }} {{ msg['allegati']|length }}</span>{% endif %}<time datetime="{{ msg['data'] }}">{{ msg['data']|data_breve }}</time></div>
             <h2>{{ msg['titolo'] }}</h2>
+            <div class="document-tools"><label class="read-check"><input type="checkbox" data-message-read="{{ msg['id'] }}" {% if msg['letta'] %}checked{% endif %}><span>Comunicazione letta</span></label><button class="bookmark-button" data-document-star="{{ msg['id'] }}" aria-pressed="{{ 'true' if msg['preferito'] else 'false' }}" aria-label="Salva tra i preferiti: {{ msg['titolo'] }}">{{ icon('star','sm') }}<span>Preferito</span></button></div>
             {% if msg['mittente'] %}<div class="board-sender">{{ msg['mittente'] }}</div>{% endif %}
             {% if msg['testo'] %}
                 {% if msg['testo']|length > 500 %}
@@ -25,6 +28,8 @@
                 {% for a in msg['allegati'] %}{{ attachment(msg, a, loop.index0) }}{% endfor %}
             </div>
             {% endif %}
+            <label class="document-reminder">Ricordamelo il <input type="date" data-document-reminder="{{ msg['id'] }}" value="{{ msg['promemoria_locale'] or '' }}"></label>
+            <p class="feature-note">Le spunte restano in UniScuola e non confermano la presa visione su Argo.</p>
         </article>
         {% else %}
         <div class="card" style="grid-column:1/-1"><div class="empty-state">{{ icon('board') }}<strong>La bacheca è ancora vuota.</strong>Aggiorna il registro per recuperare le comunicazioni della scuola.</div></div>

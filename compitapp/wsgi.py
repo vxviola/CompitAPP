@@ -51,7 +51,7 @@ def installa_card():
         nuova_destinazione = '/config/www/uniscuola'
         os.makedirs(nuova_destinazione, exist_ok=True)
         shutil.copyfile(sorgente, os.path.join(nuova_destinazione, 'uniscuola-card.js'))
-        print("[CARD] ✅ UniScuola installata: /local/uniscuola/uniscuola-card.js?v=230 (modulo JavaScript). Compatibilità con la card precedente mantenuta.")
+        print("[CARD] ✅ UniScuola installata: /local/uniscuola/uniscuola-card.js?v=240 (modulo JavaScript). Compatibilità con la card precedente mantenuta.")
     except Exception as e:
         print(f"[CARD] Non riesco a installare la card ({e}). Puoi copiarla a mano da GitHub: compitapp/card/compitapp-card.js")
 

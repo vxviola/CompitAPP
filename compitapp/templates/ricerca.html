@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% from "ui_macros.html" import icon with context %}
+{% block content %}
+<div class="container">
+    <form class="card feature-toolbar" role="search" action="{{ ui_base }}/ricerca" method="get">
+        <input type="hidden" name="studente" value="{{ ui_studente }}">
+        <label class="search-field">{{ icon('search') }}<span class="sr-only">Cerca in tutto il registro</span><input type="search" name="q" value="{{ q }}" maxlength="200" placeholder="Una materia, una parola, un documento…" required></label>
+        <button class="feature-button" type="submit">Cerca</button>
+    </form>
+    {% if q %}<p class="feature-note search-total">{{ totale }} risultati per “{{ q }}” nel registro di {{ ui_studente }}.</p>{% endif %}
+    <div class="board-grid">
+        {% for gruppo in risultati if gruppo.righe %}<section class="card"><div class="card-header"><h2 class="card-title">{{ gruppo.titolo }}</h2><span class="badge badge-primary">{{ gruppo.righe|length }}{{ '+' if gruppo.altri }}</span></div>
+            {% for r in gruppo.righe %}
+            <a class="search-result" href="{{ ui_link(gruppo.pagina) }}{% if gruppo.tipo == 'bacheca' %}#msg-{{ r.id }}{% elif gruppo.tipo == 'compiti' %}#compito-{{ r.id }}{% endif %}">
+                <time>{{ r.data|data_breve }}</time><strong>{{ r.get('titolo') or r.get('materia') or gruppo.titolo }}{% if r.get('voto') %} · {{ r.voto }}{% endif %}</strong>
+                <p>{{ (r.get('testo') or r.get('descrizione') or r.get('argomento') or r.get('attivita') or '')[:240] }}</p>
+                {% if gruppo.tipo == 'compiti' %}<small>{{ 'Completato' if r.completato else 'Da fare' }}</small>{% endif %}
+            </a>{% endfor %}
+            {% if gruppo.altri %}<p class="feature-note">Ci sono altri risultati: prova una parola più precisa.</p>{% endif %}
+        </section>{% endfor %}
+    </div>
+    {% if not totale %}<div class="card"><div class="empty-state">{{ icon('search') }}<strong>{{ 'Nessun risultato trovato.' if q else 'Tutto il registro, una ricerca.' }}</strong>{{ 'Prova un’altra parola o scegli un altro figlio.' if q else 'Cerca in compiti, voti, lezioni, promemoria e nomi degli allegati.' }}</div></div>{% endif %}
+</div>
+{% endblock %}

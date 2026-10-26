@@ -63,11 +63,11 @@ class DatabaseTest(DatabaseFixture, unittest.TestCase):
     def test_sync_aggiorna_allegati_senza_duplicati_o_notifiche(self):
         models.init_db()
         self.inserisci(allegato=dict(ALLEGATO, uid='vecchio'))
-        msg = {'uid': 'msg-1', 'titolo': 'Circolare', 'data': '2026-10-26', 'allegati': [ALLEGATO]}
+        msg = {'pk': 'msg-1', 'desOggetto': 'Circolare', 'data': '2026-10-26',
+               'listaAllegati': [{'pk': 'file-1', 'nomeFile': 'Circolare è.pdf', 'descrizioneFile': 'Programma'}]}
         with patch.object(scheduler, 'get_studenti', return_value=STUDENTI), \
-                patch.object(scheduler, 'fetch_dashboard', return_value={'data': {'dati': []}}), \
-                patch.object(scheduler, 'fetch_bacheca', return_value=[msg]), \
-                patch.object(scheduler, 'notifica_bacheca') as notifica:
+                patch('argo_client.dashboard_sync', return_value={'bacheca': [msg]}), \
+                patch('notifier.notifica_bacheca') as notifica:
             scheduler.sync_bacheca()
             scheduler.sync_bacheca()
             notifica.assert_not_called()
@@ -83,8 +83,7 @@ class DatabaseTest(DatabaseFixture, unittest.TestCase):
         self.inserisci()
         self.inserisci('Luca')
         with patch.object(scheduler, 'get_studenti', return_value=STUDENTI[:1]), \
-                patch.object(scheduler, '_prepara', return_value=(7, False)), \
-                patch.object(scheduler, 'fetch_bacheca', return_value=[{'uid': 'msg-1', 'eliminato': True}]):
+                patch('argo_client.dashboard_sync', return_value={'bacheca': [{'pk': 'msg-1', 'operazione': 'D'}]}):
             scheduler.sync_bacheca()
         conn = models.get_db()
         self.assertEqual([r['studente'] for r in conn.execute('SELECT * FROM bacheca')], ['Luca'])
@@ -232,7 +231,7 @@ class RouteTest(DatabaseFixture, unittest.TestCase):
     def test_script_download_presente_con_prefisso_ingress(self):
         r = self.client.get('/addon/bacheca?studente=Anna+%26+Leo')
         self.assertIn('data-attachment data-filename="Circolare è.pdf"', r.text)
-        self.assertIn('/addon/static/allegati.js?v=230', r.text)
+        self.assertIn('/addon/static/allegati.js?v=240', r.text)
 
     def test_altro_studente_indice_o_id_non_validi(self):
         with patch('app.link_allegato_bacheca') as link:

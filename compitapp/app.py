@@ -14,6 +14,8 @@ from scheduler import avvia_scheduler
 from bot import avvia_bot
 
 app = Flask(__name__)
+from funzioni import bp as funzioni_bp
+app.register_blueprint(funzioni_bp)
 
 from ui import contesto_ui, data_leggibile, base_ingress
 import sync_state
@@ -147,8 +149,14 @@ def bacheca():
     sel = _sel(studenti)
     conn = get_db()
     msgs = conn.execute('SELECT * FROM bacheca WHERE studente=? ORDER BY data DESC', (sel,)).fetchall()
+    letti = {(r['messaggio_id'], r['uid']): bool(r['letto']) for r in conn.execute(
+        'SELECT messaggio_id,uid,letto FROM allegati_letti WHERE studente=?', (sel,))}
     conn.close()
     msgs = [dict(msg, allegati=leggi_allegati(msg['allegati'])) for msg in msgs]
+    for msg in msgs:
+        for allegato in msg['allegati']:
+            allegato['letto'] = letti.get((msg['id'], allegato['uid']), False)
+        msg['da_leggere'] = not msg['letta'] or any(not a['letto'] for a in msg['allegati'])
     return render_template('bacheca.html', messaggi=msgs, studenti=studenti, studente_sel=sel)
 
 @app.route('/bacheca/<int:messaggio_id>/allegati/<int:indice>')
@@ -282,6 +290,8 @@ def configurazione():
         'polling_minuti': os.environ.get('POLLING_MINUTI', 30),
         'token_masked': _maschera_token(os.environ.get('TELEGRAM_TOKEN', '')),
     }
+    import ha_client
+    cfg['ha_notify'] = ha_client.configurazione(sel)
     return render_template('configurazione.html', config=cfg, studenti=studenti, studente_sel=sel)
 
 # ── API ──────────────────────────────────────────────────────────────────────
@@ -372,17 +382,26 @@ def api_test_broadcast():
 
 @app.route('/api/reset-db', methods=['POST'])
 def api_reset_db():
+    if not sync_state.inizia_manutenzione():
+        return jsonify({'ok': False, 'errore': 'Attendi la fine della sincronizzazione prima di azzerare i dati.'}), 409
+    conn = None
     try:
         conn = get_db()
-        for tabella in ['compiti','voti','assenze','note_disciplinari','bacheca','argomenti','promemoria','orario','lezioni_registro']:
+        for tabella in ['compiti','voti','assenze','note_disciplinari','bacheca','argomenti','promemoria','orario','lezioni_registro','argo_eventi','registro_argo','allegati_letti']:
             conn.execute(f'DELETE FROM {tabella}')
         # senza questo, dopo lo svuotamento l'app rileggeva solo gli ultimi 7 giorni
         conn.execute("DELETE FROM meta WHERE chiave LIKE 'storico:%' OR chiave LIKE 'media_argo:%' OR chiave LIKE 'sync_ui:%'")
+        conn.execute("DELETE FROM meta WHERE chiave LIKE 'sync_eventi:%'")
         conn.commit()
-        conn.close()
         return jsonify({'ok': True})
-    except Exception as e:
-        return jsonify({'ok': False, 'errore': str(e)})
+    except Exception:
+        if conn:
+            conn.rollback()
+        return jsonify({'ok': False, 'errore': 'Azzeramento non riuscito: dati conservati.'}), 500
+    finally:
+        if conn:
+            conn.close()
+        sync_state.termina_manutenzione()
 
 @app.route('/api/stats')
 def api_stats():

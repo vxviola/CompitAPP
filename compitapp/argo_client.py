@@ -487,6 +487,49 @@ def _dashboard_dal(studente, giorni):
         timeout=60)
     return risposta.json()
 
+
+class ArgoSyncError(Exception):
+    """Risposta non verificata: non avanzare il cursore e non cancellare dati locali."""
+
+
+def dashboard_sync(studente, dal):
+    """Delta richiesto da una data precisa. Nessun ripiego sulla sola giornata corrente."""
+    from argofamiglia.CONSTANTS import DASHBOARD_OPTIONS
+    session = get_session(studente)
+    if session is None:
+        raise ArgoSyncError('Sessione Argo non disponibile')
+    try:
+        risposta = requests.post(ENDPOINT + 'dashboard/dashboard',
+                                 headers=session._ArgoFamiglia__headers,
+                                 json={'dataultimoaggiornamento': dal.strftime('%Y-%m-%d %H:%M:%S'),
+                                       'opzioni': json.dumps(DASHBOARD_OPTIONS)}, timeout=(10, 60))
+        risposta.raise_for_status()
+        dati = risposta.json()
+    except (requests.RequestException, ValueError):
+        raise ArgoSyncError('Argo non ha restituito un aggiornamento verificabile') from None
+    if (not isinstance(dati, dict) or ('success' in dati and dati['success'] is not True)
+            or not isinstance(dati.get('data'), dict)
+            or not isinstance(dati['data'].get('dati'), list) or not dati['data']['dati']):
+        raise ArgoSyncError('Risposta dashboard incompleta o rifiutata')
+    if any(dati.get(k) is True or dati['data'].get(k) is True for k in ('hasMore', 'has_more', 'parziale')):
+        raise ArgoSyncError('Risposta parziale: lo storico rimane da completare')
+    sezioni = dati['data']['dati']
+    if not all(isinstance(s, dict) for s in sezioni):
+        raise ArgoSyncError('Formato dei profili non valido')
+    if len(sezioni) > 1:
+        try:
+            indice = int(studente.get('alunno') or 0)
+        except (TypeError, ValueError):
+            indice = 0
+        if not 1 <= indice <= len(sezioni):
+            raise ArgoSyncError('Indicare un numero alunno valido per questo account')
+        sezioni = [sezioni[indice - 1]]
+    if sezioni[0].get('profiloDisabilitato'):
+        raise ArgoSyncError('Profilo Argo disabilitato')
+    if any(sezioni[0].get(k) is True for k in ('hasMore', 'has_more', 'parziale')):
+        raise ArgoSyncError('Profilo con risposta parziale: storico da completare')
+    return sezioni[0]
+
 def fetch_registro(studente, giorni=0):
     """Lezioni del registro (lista di dict con datGiorno, ora, materia, docente).
     Con `giorni` > 0 prova a recuperare anche i giorni passati."""
@@ -530,6 +573,17 @@ def fetch_promemoria(studente, giorni=0):
 
 
 _voti_campi_loggati = set()
+
+
+def medie_da_sezione(sezione):
+    nomi = {str(m.get('pk')): (m.get('materia') or m.get('desMateria') or m.get('descrizione'))
+            for m in sezione.get('listaMaterie') or [] if isinstance(m, dict)}
+    mm = sezione.get('mediaMaterie') or {}
+    righe = mm.items() if isinstance(mm, dict) else ((str(m.get('pk')), m) for m in mm if isinstance(m, dict))
+    materie = {nomi.get(str(pk)) or str(pk): m['mediaMateria'] for pk, m in righe
+               if isinstance(m, dict) and m.get('mediaMateria') not in (None, '', 0, '0')}
+    generale = sezione.get('mediaGenerale')
+    return {'generale': generale, 'materie': materie} if generale not in (None, '') or materie else None
 
 
 def _log_campi_voto(nome, sezione):

@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.4.0 — compiti, zaino, documenti e notifiche Home Assistant
+
+- Compiti completati persistenti per figlio, filtro delle attività da fare e indicazione nella card.
+- Checklist zaino: materiali generici o per materia, selezionati dall’orario ricostruito; spunte distinte per giorno e studente.
+- Notifiche HA configurabili per figlio, dispositivo e categoria, disattivate inizialmente; prova esplicita e collegamento al pannello dell’app. Telegram resta disponibile.
+- Lettura locale di comunicazioni e allegati, preferiti, filtri e promemoria documenti via HA con deduplicazione. Nessuna presa visione inviata ad Argo.
+- Ricerca globale in compiti, voti, lezioni, promemoria, comunicazioni e nomi dei file.
+- Identificativi Argo per correzioni e cancellazioni; gruppi dei compiti aggiornati senza trasferire spunte tra attività riordinate. Nessuna cancellazione per semplice assenza nel delta.
+- Cursori persistenti per categoria, richieste dalla data necessaria dopo intervalli offline, commit atomico di dati e cursore; risposte mancanti, parziali o malformate non completano la categoria.
+- Backup SQLite prima della migrazione degli archivi esistenti e prima rilettura silenziosa dell’anno. Record legacy ambigui conservati.
+- Azzeramento del registro protetto dal blocco di sincronizzazione. Guide aggiornate. Verifiche con servizi simulati; collaudo finale su Argo e notifiche iOS reali da effettuare.
+
 ## 2.3.0 — UniScuola, card Lovelace e documenti su iOS
 
 - Il fork prende il nome **UniScuola**, con riconoscimento esplicito di CompitAPP e ringraziamento a elbarto8383. Nome aggiornato nell’app, nella barra laterale, nelle notifiche Telegram e nei nomi visualizzati dei sensori; identificativi, impostazioni e database mantenuti.

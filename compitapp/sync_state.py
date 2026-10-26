@@ -23,6 +23,14 @@ def errore(nome):
         _errori.add(nome)
 
 
+def inizia_manutenzione():
+    return _lock.acquire(blocking=False)
+
+
+def termina_manutenzione():
+    _lock.release()
+
+
 def leggi(nome):
     conn = get_db()
     try:

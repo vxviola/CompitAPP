@@ -149,7 +149,7 @@
     };
     if (ui.studente) pollSync();
     const search = $('board-search'), onlyFiles = $('board-files'), period = $('board-period');
-    const from = $('board-from'), to = $('board-to');
+    const from = $('board-from'), to = $('board-to'), unread = $('board-unread'), starred = $('board-starred');
     if (search && onlyFiles && period) {
         const cards = Array.from(document.querySelectorAll('[data-board-card]'));
         const fold = function (value) { return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('it'); };
@@ -169,7 +169,7 @@
                 const textOk = words.every(function (word) { return texts.get(card).includes(word); });
                 const periodOk = period.value === 'all' || (!isNaN(dt.getTime()) && dt >= minDate);
                 const rangeOk = (!from.value || date >= from.value) && (!to.value || date <= to.value);
-                const show = textOk && periodOk && rangeOk && (!onlyFiles.checked || Number(card.dataset.files) > 0);
+                const show = textOk && periodOk && rangeOk && (!onlyFiles.checked || Number(card.dataset.files) > 0) && (!unread.checked || card.dataset.unread === '1') && (!starred.checked || card.dataset.starred === '1');
                 card.hidden = !show; if (show) visible++;
             });
             $('board-count').textContent = visible + (visible === 1 ? ' comunicazione' : ' comunicazioni') + ' su ' + cards.length;
@@ -178,10 +178,11 @@
             [['q',search.value.trim()],['allegati',onlyFiles.checked?'1':''],['periodo',period.value==='all'?'':period.value]].forEach(function (entry) { if (entry[1]) url.searchParams.set(entry[0], entry[1]); else url.searchParams.delete(entry[0]); });
             history.replaceState(null, '', url);
         }
-        [search, onlyFiles, period, from, to].forEach(function (el) { el.addEventListener('input', filterBoard); });
+        [search, onlyFiles, period, from, to, unread, starred].forEach(function (el) { el.addEventListener('input', filterBoard); });
         document.querySelectorAll('[data-reset-filters]').forEach(function (button) {
-            button.addEventListener('click', function () { search.value=''; onlyFiles.checked=false; period.value='all'; from.value=''; to.value=''; filterBoard(); search.focus(); });
+            button.addEventListener('click', function () { search.value=''; onlyFiles.checked=false; unread.checked=false; starred.checked=false; period.value='all'; from.value=''; to.value=''; filterBoard(); search.focus(); });
         });
+        document.addEventListener('document-preference', filterBoard);
         filterBoard();
     }
 })();

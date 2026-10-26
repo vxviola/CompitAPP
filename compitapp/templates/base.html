@@ -9,10 +9,11 @@
     <script>try{var t=localStorage.getItem('compitapp-theme')||'system';document.documentElement.dataset.theme=t==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):t;}catch(e){}</script>
     <link rel="icon" type="image/png" href="{{ ui_asset('favicon-32x32.png') }}">
     <link rel="apple-touch-icon" href="{{ ui_asset('apple-touch-icon.png') }}">
-    <link rel="stylesheet" href="{{ ui_asset('dashboard.css') }}?v=230">
+    <link rel="stylesheet" href="{{ ui_asset('dashboard.css') }}?v=240">
     <script>window.COMPITAPP={{ {'base': ui_base, 'studente': ui_studente, 'palette': ui_palette}|tojson }};</script>
-    <script src="{{ ui_asset('dashboard.js') }}?v=230" defer></script>
-    <script src="{{ ui_asset('allegati.js') }}?v=230" defer></script>
+    <script src="{{ ui_asset('dashboard.js') }}?v=240" defer></script>
+    <script src="{{ ui_asset('allegati.js') }}?v=240" defer></script>
+    <script src="{{ ui_asset('funzioni.js') }}?v=240" defer></script>
 </head>
 <body>
 {% if demo_preview|default(false) %}<div class="demo-banner">ANTEPRIMA · DATI DIMOSTRATIVI</div>{% endif %}
@@ -50,10 +51,11 @@
         {{ nav_item('/orario', 'Orario', 'clock', 'orario') }}
         {{ nav_item('/assenze', 'Presenze', 'check', 'assenze') }}
         {{ nav_item('/argomenti', 'Lezioni', 'book', 'argomenti') }}
+        {{ nav_item('/zaino', 'Prepara lo zaino', 'book', 'zaino') }}{{ nav_item('/ricerca', 'Ricerca', 'search', 'ricerca') }}
     </nav>
     <div class="nav-caption">Preferenze</div>
     <nav class="nav-list" aria-label="Preferenze">{{ nav_item('/configurazione', 'Impostazioni', 'settings', 'configurazione') }}</nav>
-    <div class="sidebar-foot">{{ icon('leaf', 'sm') }} <strong>Un piccolo aiuto, ogni giorno.</strong>Curato da vxviola · 2.3.0</div>
+    <div class="sidebar-foot">{{ icon('leaf', 'sm') }} <strong>Un piccolo aiuto, ogni giorno.</strong>Curato da vxviola · 2.4.0</div>
 </aside>
 
 <div class="app-main">
@@ -61,7 +63,7 @@
         <a class="mobile-brand" href="{{ ui_link('/') }}">{{ icon('book') }} UniScuola.</a>
         <div class="student-switcher" aria-label="Seleziona studente">
             {% for s in studenti|default([]) %}
-            <a href="{{ ui_link('/' if pagina == 'download_allegato' else {'index':'/','calendario':'/calendario','bacheca':'/bacheca','voti':'/voti','orario':'/orario','assenze':'/assenze','argomenti':'/argomenti','configurazione':'/configurazione'}.get(pagina, '/'), studente=s.nome) }}" class="student-chip {{ 'active' if s.nome == ui_studente }}" {% if s.nome == ui_studente %}aria-current="true"{% endif %}>
+            <a href="{{ ui_link('/' if pagina == 'download_allegato' else {'index':'/','calendario':'/calendario','bacheca':'/bacheca','voti':'/voti','orario':'/orario','assenze':'/assenze','argomenti':'/argomenti','configurazione':'/configurazione','zaino':'/zaino','ricerca':'/ricerca'}.get(pagina, '/'), studente=s.nome) }}" class="student-chip {{ 'active' if s.nome == ui_studente }}" {% if s.nome == ui_studente %}aria-current="true"{% endif %}>
                 <span class="avatar">{{ s.nome[:2]|upper }}</span><span>{{ s.nome|title }}</span>
             </a>
             {% else %}<a class="student-chip" href="{{ ui_link('/configurazione') }}">Configura uno studente</a>{% endfor %}
@@ -90,13 +92,14 @@
     <a href="{{ ui_link('/calendario') }}" class="{{ 'active' if pagina == 'calendario' }}" {% if pagina == 'calendario' %}aria-current="page"{% endif %}>{{ icon('calendar') }}<span>Calendario</span></a>
     <a href="{{ ui_link('/bacheca') }}" class="{{ 'active' if pagina == 'bacheca' }}" {% if pagina == 'bacheca' %}aria-current="page"{% endif %}>{{ icon('board') }}<span>Bacheca</span></a>
     <a href="{{ ui_link('/voti') }}" class="{{ 'active' if pagina == 'voti' }}" {% if pagina == 'voti' %}aria-current="page"{% endif %}>{{ icon('chart') }}<span>Voti</span></a>
-    <button id="more-toggle" aria-label="Altre sezioni" aria-expanded="false" aria-controls="more-menu" class="{{ 'active' if pagina in ['orario','assenze','argomenti','configurazione'] }}">{{ icon('more') }}<span>Altro</span></button>
+    <button id="more-toggle" aria-label="Altre sezioni" aria-expanded="false" aria-controls="more-menu" class="{{ 'active' if pagina in ['orario','assenze','argomenti','configurazione','zaino','ricerca'] }}">{{ icon('more') }}<span>Altro</span></button>
 </nav>
 <div id="more-menu" class="more-menu" hidden role="dialog" aria-label="Altre sezioni">
     <div class="more-menu-head">Esplora UniScuola<button id="more-close" class="icon-btn" aria-label="Chiudi menu">{{ icon('close') }}</button></div>
     <div class="more-menu-grid">
         {{ nav_item('/orario', 'Orario', 'clock', 'orario') }}{{ nav_item('/assenze', 'Presenze', 'check', 'assenze') }}
-        {{ nav_item('/argomenti', 'Lezioni', 'book', 'argomenti') }}{{ nav_item('/configurazione', 'Impostazioni', 'settings', 'configurazione') }}
+        {{ nav_item('/argomenti', 'Lezioni', 'book', 'argomenti') }}
+        {{ nav_item('/zaino', 'Prepara lo zaino', 'book', 'zaino') }}{{ nav_item('/ricerca', 'Ricerca', 'search', 'ricerca') }}{{ nav_item('/configurazione', 'Impostazioni', 'settings', 'configurazione') }}
     </div>
 </div>
 <div class="toast" id="toast" hidden role="status" aria-live="polite"></div>

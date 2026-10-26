@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from "ui_macros.html" import icon with context %}
+{% block content %}
+<div class="container">
+    <form class="card feature-toolbar" method="get" action="{{ ui_base }}/zaino">
+        <input type="hidden" name="studente" value="{{ ui_studente }}">
+        <label>Prepara per <input type="date" name="data" value="{{ giorno }}" required></label>
+        <button class="feature-button" type="submit">Mostra la giornata</button>
+    </form>
+    <div class="dashboard-columns">
+        <section class="card">
+            <div class="card-header"><h2 class="card-title">{{ giorno|data_breve(true) }}</h2><span class="badge badge-primary" id="bag-count">{{ fatti }} / {{ checklist|length }}</span></div>
+            {% if materie_giorno %}<p class="feature-note">In classe: {{ materie_giorno|unique|join(', ') }}. L’orario è ricostruito dal registro.</p>{% else %}<p class="feature-note">Nessuna lezione nell’orario disponibile per questo giorno. Mostriamo i materiali impostati per ogni giorno.</p>{% endif %}
+            {% for m in checklist %}<label class="bag-row {{ 'is-complete' if m.fatto }}"><input type="checkbox" data-bag-check="{{ m.id }}" data-day="{{ giorno }}" {% if m.fatto %}checked{% endif %}><span><strong>{{ m.testo }}</strong><small>{{ m.materia or 'Ogni giorno' }}</small></span></label>
+            {% else %}<div class="empty-state">{{ icon('book') }}<strong>Prepariamo lo zaino.</strong>Aggiungi i materiali da portare sempre o per una materia.</div>{% endfor %}
+        </section>
+        <section class="card">
+            <div class="card-header"><h2 class="card-title">I tuoi materiali</h2></div>
+            <form id="bag-add" class="feature-form">
+                <label>Materiale<input name="testo" required maxlength="200" placeholder="Es. quaderno a quadretti"></label>
+                <label>Quando portarlo<select name="materia"><option value="">Ogni giorno</option>{% for m in materie %}<option>{{ m }}</option>{% endfor %}</select></label>
+                <button class="feature-button" type="submit">Aggiungi allo zaino</button>
+            </form>
+            <p class="feature-note">Le spunte valgono solo per il giorno scelto. I materiali restano salvati per {{ ui_studente }}.</p>
+            {% for m in materiali %}<div class="material-row"><span>{{ m.testo }}<small>{{ m.materia or 'Ogni giorno' }}</small></span><button class="feature-remove" data-bag-delete="{{ m.id }}" aria-label="Rimuovi {{ m.testo }}">Rimuovi</button></div>{% endfor %}
+        </section>
+    </div>
+</div>
+{% endblock %}
