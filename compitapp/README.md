@@ -76,6 +76,8 @@ Se il file non è disponibile, compare un messaggio di errore. Riprova dalla bac
 
 ## Installare questo fork
 
+**Accesso della famiglia:** dalla versione **2.4.1**, UniScuola è disponibile nella barra laterale anche agli utenti Home Assistant non amministratori. L’amministratore deve attivare **Mostra nella barra laterale** nella pagina dell’app; dopo l’aggiornamento, ricarica le sessioni dei familiari. Se necessario, riattiva quell’interruttore. Non occorre promuovere gli account ad amministratori. L’app è uno spazio condiviso: tutti gli utenti HA che la aprono accedono agli studenti configurati e alle impostazioni interne; non ci sono profili o permessi separati per utente.
+
 Serve un’installazione di Home Assistant con lo store delle app/add-on, come Home Assistant OS o Supervised.
 
 1. Apri **Impostazioni → App/Add-on → Store**.

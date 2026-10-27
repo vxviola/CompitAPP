@@ -1,7 +1,7 @@
 name: "UniScuola"
 description: "Dashboard famiglia per DiDUP/Argo: compiti, zaino, documenti e notifiche Home Assistant e Telegram"
 url: "https://github.com/vxviola/CompitAPP"
-version: "2.4.0"
+version: "2.4.1"
 slug: compitapp
 init: false
 arch:
@@ -63,6 +63,7 @@ ingress_port: 5002
 ingress_entry: /
 panel_icon: mdi:bookshelf
 panel_title: UniScuola
+panel_admin: false
 ports:
   5002/tcp: 5002
 ports_description:

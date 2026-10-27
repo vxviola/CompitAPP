@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.4.1 — accesso dalla barra laterale per la famiglia
+
+- Impostato `panel_admin: false`: il pannello Ingress è disponibile anche agli utenti Home Assistant non amministratori. Il valore predefinito di HA lo limitava agli amministratori, anche quando la card era visibile agli altri utenti.
+- Accesso tramite login di Home Assistant; non occorre rendere amministratori i familiari. UniScuola mantiene lo spazio condiviso esistente, comprese le impostazioni interne: non introduce profili o permessi separati per utente.
+- Dopo l’aggiornamento, mantenere attivo **Mostra nella barra laterale** nella pagina dell’app e ricaricare le sessioni dei familiari.
+
 ## 2.4.0 — compiti, zaino, documenti e notifiche Home Assistant
 
 - Compiti completati persistenti per figlio, filtro delle attività da fare e indicazione nella card.
