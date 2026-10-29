@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4.2 — diagnostica accesso Argo
+
+- Login password: gestite risposte senza Location, errori HTTP, timeout, callback e risposte token/profili non valide. Limite di dieci reindirizzamenti.
+- Il log ARGO-AUTH riporta fase, passo, codice HTTP, presenza di Location e motivo controllato; non registra URL, credenziali, cookie, token o corpo delle risposte.
+- Nessun cambiamento alla configurazione richiesta, al database o al login SPID. Un errore di login conserva dati e cursori.
+- Dopo l’aggiornamento, riavviare e condividere soltanto il dettaglio da ARGO-AUTH in poi, senza il nome dello studente. Questa diagnostica non garantisce la risoluzione del login: permette di identificare il passaggio che fallisce.
+
 ## 2.4.1 — accesso dalla barra laterale per la famiglia
 
 - Impostato `panel_admin: false`: il pannello Ingress è disponibile anche agli utenti Home Assistant non amministratori. Il valore predefinito di HA lo limitava agli amministratori, anche quando la card era visibile agli altri utenti.

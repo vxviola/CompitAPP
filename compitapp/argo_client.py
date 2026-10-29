@@ -5,6 +5,7 @@ import secrets
 import threading
 import requests
 from argofamiglia import ArgoFamiglia
+from argo_auth import ArgoPassword, ArgoLoginError
 from argofamiglia.CONSTANTS import ENDPOINT
 
 def get_studenti():
@@ -144,7 +145,7 @@ def get_session(studente):
                 if spid:
                     _sessions[nome] = ArgoSpid(studente['codice_scuola'], nome)
                 else:
-                    _sessions[nome] = ArgoFamiglia(
+                    _sessions[nome] = ArgoPassword(
                         studente['codice_scuola'],
                         studente['username'],
                         studente['password']
@@ -154,7 +155,8 @@ def get_session(studente):
                 print(f"[ARGO] ✅ Sessione creata per {nome}")
             return _sessions[nome]
         except Exception as e:
-            print(f"[ARGO] ❌ Errore sessione {nome}: {e}")
+            dettaglio = str(e) if isinstance(e, ArgoLoginError) else "errore_sessione_non_classificato"
+            print(f"[ARGO] ❌ Errore sessione {nome}: {dettaglio}")
             _sessions.pop(nome, None)
             return None
 
