@@ -26,6 +26,7 @@ SOFTWARE.
 import base64
 import secrets
 from hashlib import sha256
+from html.parser import HTMLParser
 from urllib.parse import parse_qs, urljoin, urlsplit
 
 import requests
@@ -36,6 +37,48 @@ from argofamiglia.CONSTANTS import ENDPOINT, USER_AGENT
 
 class ArgoLoginError(ValueError):
     """Messaggio composto esclusivamente da metadati controllati."""
+
+
+class _AppRedirectParser(HTMLParser):
+    """Legge il link usato da initializeAppRedirect nel JavaScript pubblico Argo."""
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.targets = []
+
+    def handle_starttag(self, tag, attrs):
+        attributes = dict(attrs)
+        if tag == 'a' and 'data-auth-app-redirect' in attributes:
+            self.targets.append(attributes.get('href') or '')
+
+
+def _html_app_redirect(response, hop):
+    # Argo mostra ora una pagina di conferma prima dell'ultimo hop OAuth.
+    # Non eseguiamo JavaScript e non seguiamo link generici della pagina.
+    origin = urlsplit(response.url)
+    if (response.status_code != 200 or origin.scheme != 'https'
+            or origin.netloc != 'www.portaleargo.it'
+            or origin.path.rstrip('/') != '/auth/sso/consent'
+            or response.headers.get('Content-Type', '').split(';')[0].strip().lower() != 'text/html'):
+        return None
+    if len(response.content) > 1024 * 1024:
+        _fail('consent_html', 'pagina_troppo_grande', response, hop)
+    parser = _AppRedirectParser()
+    parser.feed(response.text)
+    if not parser.targets:
+        return None
+    if len(parser.targets) != 1 or not parser.targets[0]:
+        _fail('consent_html', 'link_app_non_univoco', response, hop)
+    target = urljoin(response.url, parser.targets[0])
+    try:
+        destination = urlsplit(target)
+    except ValueError:
+        _fail('consent_html', 'destinazione_non_prevista', response, hop)
+    expected = urlsplit(CHALLENGE_URL)
+    if ((destination.scheme, destination.netloc, destination.path) !=
+            (expected.scheme, expected.netloc, expected.path)
+            or destination.fragment or not destination.query):
+        _fail('consent_html', 'destinazione_non_prevista', response, hop)
+    return target
 
 
 def _fail(stage, reason, response=None, hop=0):
@@ -91,6 +134,8 @@ def login(school, username, password):
         for hop in range(11):
             stage = 'credenziali' if hop == 0 else 'redirect'
             location = response.headers.get('Location')
+            if not location:
+                location = _html_app_redirect(response, hop)
             if not location:
                 _fail(stage, 'location_assente', response, hop)
             target = urljoin(response.url, location)

@@ -1,7 +1,7 @@
 name: "UniScuola"
 description: "Dashboard famiglia per DiDUP/Argo: compiti, zaino, documenti e notifiche Home Assistant e Telegram"
 url: "https://github.com/vxviola/CompitAPP"
-version: "2.4.2"
+version: "2.4.3"
 slug: compitapp
 init: false
 arch:

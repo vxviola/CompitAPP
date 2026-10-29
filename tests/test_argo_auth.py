@@ -21,6 +21,13 @@ def response(status=200, location=None, data=None, url=auth.LOGIN_URL):
 
 
 class LoginTest(unittest.TestCase):
+    def consent(self, html, url='https://www.portaleargo.it/auth/sso/consent?consent_challenge=secret'):
+        r = response(url=url)
+        r.headers['Content-Type'] = 'text/html; charset=UTF-8'
+        r.text = html
+        r.content = html.encode()
+        return r
+
     def run_login(self, replies):
         session = Mock()
         session.request.side_effect = replies
@@ -41,6 +48,55 @@ class LoginTest(unittest.TestCase):
         self.assertEqual(obj._ArgoFamiglia__headers['x-auth-token'], 'profile-secret')
         self.assertEqual(session.request.call_count, 5)
         self.assertTrue(all(c.kwargs['timeout'] == (10, 30) for c in session.request.call_args_list))
+
+    def test_html_confirmation_completes_login(self):
+        html = '<h1>Accesso completato</h1><a data-auth-app-redirect href="https://auth.portaleargo.it/oauth2/auth?consent_verifier=secret&amp;x=1">Continua</a>'
+        obj, session = self.run_login([
+            self.challenge(), response(302, auth.CHALLENGE_URL + '?login_verifier=secret'),
+            response(302, 'https://www.portaleargo.it/auth/sso/consent?consent_challenge=secret'),
+            self.consent(html), self.callback(),
+            response(data={'access_token': 'access-secret'}),
+            response(data={'data': [{'token': 'profile-secret'}]})])
+        self.assertEqual(obj._ArgoFamiglia__headers['x-auth-token'], 'profile-secret')
+        call = session.request.call_args_list[4]
+        self.assertEqual(call.args, ('GET', auth.CHALLENGE_URL + '?consent_verifier=secret&x=1'))
+        self.assertFalse(call.kwargs['allow_redirects'])
+
+    def test_html_does_not_follow_arbitrary_links_or_execute_scripts(self):
+        for html in [
+            '<a href="https://auth.portaleargo.it/oauth2/auth?secret=1">Continua</a>',
+            '<script>location.href="https://auth.portaleargo.it/oauth2/auth?secret=1"</script>',
+            '<p>Errore di accesso</p>',
+        ]:
+            with self.subTest(html=html):
+                self.assertIsNone(auth._html_app_redirect(self.consent(html), 2))
+
+    def test_html_rejects_untrusted_or_ambiguous_targets(self):
+        targets = ['https://evil.example/?secret=1', 'javascript:alert(1)',
+                   'http://auth.portaleargo.it/oauth2/auth?secret=1',
+                   'https://auth.portaleargo.it@evil.example/oauth2/auth?secret=1',
+                   'https://auth.portaleargo.it/other?secret=1',
+                   'https://auth.portaleargo.it/oauth2/auth',
+                   'https://auth.portaleargo.it/oauth2/auth?secret=1#fragment']
+        for target in targets:
+            with self.subTest(target=target):
+                with self.assertRaises(auth.ArgoLoginError) as ctx:
+                    auth._html_app_redirect(self.consent(f'<a data-auth-app-redirect href="{target}">Continua</a>'), 2)
+                self.assertNotIn('secret', str(ctx.exception))
+        with self.assertRaisesRegex(auth.ArgoLoginError, 'link_app_non_univoco'):
+            auth._html_app_redirect(self.consent('<a data-auth-app-redirect></a><a data-auth-app-redirect></a>'), 2)
+
+    def test_html_only_from_expected_consent_page(self):
+        html = '<a data-auth-app-redirect href="https://auth.portaleargo.it/oauth2/auth?secret=1">Continua</a>'
+        for url in ['https://evil.example/auth/sso/consent', auth.LOGIN_URL,
+                    'http://www.portaleargo.it/auth/sso/consent']:
+            self.assertIsNone(auth._html_app_redirect(self.consent(html, url), 2))
+        r = self.consent(html)
+        r.headers['Content-Type'] = 'application/json'
+        self.assertIsNone(auth._html_app_redirect(r, 2))
+        r = self.consent('x' * (1024 * 1024 + 1))
+        with self.assertRaisesRegex(auth.ArgoLoginError, 'pagina_troppo_grande'):
+            auth._html_app_redirect(r, 2)
 
     def test_missing_location_at_first_and_later_response(self):
         for prefix, phase, step in [([], 'credenziali', 0), ([response(302, '/next')], 'redirect', 1)]:

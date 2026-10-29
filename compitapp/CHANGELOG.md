@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4.3 — completamento del nuovo login Argo
+
+- Supportata la pagina HTML «Accesso completato» introdotta nel flusso nativo Argo: viene seguito il link `data-auth-app-redirect` verso l’ultimo passaggio OAuth, anche senza intestazione HTTP Location.
+- Il link viene accettato soltanto dalla pagina HTTPS di consenso Argo e soltanto verso l’endpoint OAuth atteso. Nessuna esecuzione di JavaScript, nessun link generico o destinazione esterna.
+- Conservati il flusso precedente a reindirizzamenti HTTP, la diagnostica senza segreti e i dati locali in caso di errore.
+- Verificati 80 test Python, inclusi nuovo flusso e controlli sui link. Confermato anche un login reale fino all’ottenimento del profilo Argo; recupero dei dati da verificare dopo l’aggiornamento dell’app.
+
 ## 2.4.2 — diagnostica accesso Argo
 
 - Login password: gestite risposte senza Location, errori HTTP, timeout, callback e risposte token/profili non valide. Limite di dieci reindirizzamenti.
