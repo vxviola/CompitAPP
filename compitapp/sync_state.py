@@ -6,7 +6,7 @@ from models import get_db
 
 _lock = threading.Lock()
 _in_corso = False
-_errori = set()
+_errori = {}
 
 
 def inizia():
@@ -18,9 +18,9 @@ def inizia():
     return True
 
 
-def errore(nome):
+def errore(nome, motivo="sincronizzazione"):
     if _in_corso:
-        _errori.add(nome)
+        _errori[nome] = "accesso" if motivo == "accesso" or _errori.get(nome) == "accesso" else "sincronizzazione"
 
 
 def inizia_manutenzione():
@@ -41,6 +41,8 @@ def leggi(nome):
             valore = {}
         if not isinstance(valore, dict):
             valore = {}
+        if _in_corso and nome in _errori:
+            valore.update(esito="errore", motivo=_errori[nome])
         return dict(valore, in_corso=_in_corso)
     finally:
         conn.close()
@@ -52,16 +54,25 @@ def termina(nomi, fallito=False):
         ora = datetime.now().astimezone().isoformat(timespec='seconds')
         conn = get_db()
         try:
+            stati = []
             for nome in nomi:
                 precedente = leggi(nome)
                 ok = not fallito and nome not in _errori
                 dati = {'ultimo_tentativo': ora, 'esito': 'ok' if ok else 'errore',
-                        'ultimo_successo': ora if ok else precedente.get('ultimo_successo')}
+                        'ultimo_successo': ora if ok else precedente.get('ultimo_successo'),
+                        'motivo': None if ok else _errori.get(nome, 'sincronizzazione')}
+                stati.append(dati)
                 conn.execute('INSERT OR REPLACE INTO meta (chiave,valore) VALUES (?,?)',
                              ('sync_ui:' + nome, json.dumps(dati)))
             conn.commit()
         finally:
             conn.close()
+        if stati:
+            try:
+                from ha_client import avviso_sincronizzazione
+                avviso_sincronizzazione(stati)
+            except Exception:
+                print('[HA] Avviso stato non aggiornato; riprovo al prossimo controllo')
     finally:
         _in_corso = False
         _lock.release()

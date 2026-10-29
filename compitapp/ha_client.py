@@ -9,6 +9,42 @@ from models import get_db
 
 EVENTI = ('compiti', 'voti', 'assenze', 'note', 'bacheca', 'promemoria', 'documenti')
 _slug = None
+_ultimo_avviso_sync = None
+
+
+def avviso_sincronizzazione(stati):
+    """Un solo avviso tecnico HA, indipendente dalle notifiche scolastiche."""
+    global _ultimo_avviso_sync
+    if not stati or not os.environ.get('SUPERVISOR_TOKEN'):
+        return
+    errori = [s for s in stati if s.get('esito') == 'errore']
+    accesso = sum(s.get('motivo') == 'accesso' for s in errori)
+    firma = (len(errori), accesso)
+    if firma == _ultimo_avviso_sync:
+        return
+    # Non cancellare un avviso se manca una verifica completa di qualche profilo.
+    if not errori and any(s.get('esito') != 'ok' for s in stati):
+        return
+    _apertura('/')  # recupera lo slug per separare installazioni diverse
+    if not _slug:
+        return  # al prossimo ciclo si riprova, senza ID condivisi tra installazioni
+    payload = {'notification_id': _slug + '_sincronizzazione'}
+    azione = 'dismiss'
+    if errori:
+        azione = 'create'
+        payload.update(
+            title='UniScuola — accesso Argo fallito' if accesso else 'UniScuola — sincronizzazione fallita',
+            message=(f'Dati non aggiornati per {len(errori)} profilo/i. '
+                     'Apri UniScuola per verificare lo stato e l’ultimo aggiornamento riuscito. '
+                     'I dati già scaricati sono conservati. L’avviso verrà rimosso dopo una '
+                     'sincronizzazione completa riuscita per tutti i profili.'))
+    try:
+        r = requests.post('http://supervisor/core/api/services/persistent_notification/' + azione,
+                          headers=_headers(), json=payload, timeout=(3, 8))
+        r.raise_for_status()
+        _ultimo_avviso_sync = firma
+    except (requests.RequestException, RuntimeError):
+        print('[HA] Avviso stato non consegnato; riprovo al prossimo controllo')
 
 
 def configurazione(nome):

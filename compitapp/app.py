@@ -328,14 +328,18 @@ def api_sync_status(prefix=None):
 @app.route('/api/test-connessione', methods=['POST'])
 def api_test_connessione():
     try:
-        from argo_client import fetch_compiti
+        from argo_client import get_session, _reset_session
         studenti = get_studenti()
         if not studenti:
             return jsonify({'ok': False, 'errore': 'Nessuno studente configurato'})
-        compiti = fetch_compiti(studenti[0])
-        return jsonify({'ok': True, 'n_compiti': len(compiti)})
-    except Exception as e:
-        return jsonify({'ok': False, 'errore': str(e)})
+        nome = _sel(studenti)
+        studente = next(s for s in studenti if s['nome'] == nome)
+        _reset_session(nome)
+        if get_session(studente) is None:
+            return jsonify({'ok': False, 'errore': 'Accesso Argo non riuscito. Controlla configurazione e log.'})
+        return jsonify({'ok': True})
+    except Exception:
+        return jsonify({'ok': False, 'errore': 'Verifica Argo non riuscita. Riprova più tardi.'})
 
 # ── SPID ─────────────────────────────────────────────────────────────────────
 

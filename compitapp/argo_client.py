@@ -155,6 +155,8 @@ def get_session(studente):
                 print(f"[ARGO] ✅ Sessione creata per {nome}")
             return _sessions[nome]
         except Exception as e:
+            import sync_state
+            sync_state.errore(nome, "accesso")
             dettaglio = str(e) if isinstance(e, ArgoLoginError) else "errore_sessione_non_classificato"
             print(f"[ARGO] ❌ Errore sessione {nome}: {dettaglio}")
             _sessions.pop(nome, None)

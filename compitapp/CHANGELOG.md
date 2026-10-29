@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.4.4 — errori Argo visibili e avviso Home Assistant
+
+- Avviso persistente in Home Assistant quando il ciclo di sincronizzazione fallisce, con indicazione dell’errore di accesso quando rilevato. Un solo avviso per installazione, senza nomi, credenziali o token; rimozione automatica dopo un ciclo riuscito per tutti i profili. Indipendente dalle notifiche scolastiche configurate per telefono o Telegram.
+- Indicatore rosso mantenuto durante i nuovi tentativi dopo un errore; verde solo dopo un controllo completato con successo. Attesa/primo controllo in giallo; errore anche se lo stato non è raggiungibile. Ultimo aggiornamento valido conservato.
+- Impostazioni: account configurato distinto da sincronizzazione riuscita. Test connessione sul profilo selezionato, con accesso reale e nessun falso successo dovuto a una lista compiti vuota.
+- Lo stato «In esecuzione» dell’app nella pagina di Home Assistant continua a indicare il processo avviato. L’app resta consultabile anche quando Argo non è raggiungibile.
+- Verifiche automatiche con risposte Home Assistant e Argo simulate; verifica dell’avviso sull’installazione reale dopo l’aggiornamento.
+
 ## 2.4.3 — completamento del nuovo login Argo
 
 - Supportata la pagina HTML «Accesso completato» introdotta nel flusso nativo Argo: viene seguito il link `data-auth-app-redirect` verso l’ultimo passaggio OAuth, anche senza intestazione HTTP Location.

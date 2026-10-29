@@ -84,8 +84,8 @@
         });
     });
     function statusText(state) {
+        if (state.esito === 'errore') return (state.motivo === 'accesso' ? 'Errore di accesso Argo' : 'Errore di sincronizzazione') + (state.in_corso ? ' · nuovo tentativo in corso' : ' · dati non aggiornati');
         if (state.in_corso) return 'Sincronizzazione in corso…';
-        if (state.esito === 'errore') return 'Ultimo controllo incompleto';
         return state.ultimo_successo ? 'Ultimo aggiornamento' : 'In attesa del primo controllo';
     }
     function timeText(value) {
@@ -102,9 +102,15 @@
         });
         const info = $('sync-info');
         if (info) {
-            info.classList.toggle('is-error', state.esito === 'errore' && !state.in_corso);
+            info.classList.toggle('is-error', state.esito === 'errore');
+            info.classList.toggle('is-ok', state.esito === 'ok' && !state.in_corso);
             $('sync-label').textContent = statusText(state);
             $('sync-time').textContent = timeText(state.ultimo_successo);
+        }
+        const connection = $('connection-status');
+        if (connection) {
+            connection.className = 'alert ' + (state.esito === 'errore' ? 'alert-danger' : state.esito === 'ok' && !state.in_corso ? 'alert-success' : 'alert-warning');
+            connection.textContent = statusText(state) + (state.ultimo_successo ? ' · Ultimo successo: ' + timeText(state.ultimo_successo) : '');
         }
         if ($('dashboard-sync')) $('dashboard-sync').textContent = statusText(state) + (state.ultimo_successo ? ' · ' + timeText(state.ultimo_successo) : '');
     }
@@ -127,7 +133,8 @@
             syncTimer = setTimeout(pollSync, state.in_corso ? 2000 : 30000);
         } catch (_) {
             if (waiting) showToast('Connessione interrotta. Il controllo può continuare in background; riprovo a verificarlo.', 6000, true);
-            if ($('sync-label')) $('sync-label').textContent = 'Stato non raggiungibile';
+            renderSync({esito: 'errore', ultimo_successo: lastSeen});
+            if ($('sync-label')) $('sync-label').textContent = 'Stato non raggiungibile · aggiornamento non verificato';
             syncTimer = setTimeout(pollSync, 15000);
         }
     }

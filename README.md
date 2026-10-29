@@ -207,6 +207,12 @@ In bacheca tocca **Scarica**, attendi che il file sia pronto e poi **Salva o con
 
 La correzione è verificata con risposte simulate, tipi MIME, flussi di condivisione e browser desktop; la conferma sul dispositivo iOS reale resta da effettuare.
 
+## Errori di accesso e sincronizzazione
+
+Dalla versione **2.4.4**, un controllo fallito produce un avviso persistente nelle notifiche di Home Assistant. Non occorre configurare Telegram o un telefono. L’avviso è unico per installazione e viene rimosso automaticamente dopo una sincronizzazione completa riuscita per tutti i profili; se Home Assistant non è raggiungibile, l’invio viene ritentato al ciclo successivo.
+
+Dentro UniScuola il rosso resta visibile anche durante un nuovo tentativo, fino al successo. L’attesa è gialla; il verde indica l’ultimo controllo completato con successo. L’ora dell’ultimo aggiornamento valido resta disponibile. La dicitura **In esecuzione** nella pagina app/add-on di Home Assistant indica soltanto che il processo è avviato: l’avviso segnala separatamente i problemi del registro.
+
 ## Dati, accesso e limiti
 
 I dati del registro restano nel database locale dell’app. Le richieste vengono inviate ad Argo; se abiliti Telegram, le notifiche passano anche dai server Telegram. L’autore originale e il manutentore del fork non ricevono i tuoi dati tramite servizi propri.
