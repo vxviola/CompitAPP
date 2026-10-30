@@ -37,7 +37,7 @@ Se usi già questo fork, aggiorna l’app dallo store di Home Assistant: **impos
 
 - **Compiti completati:** spunta le attività dalla home o dal calendario; puoi mostrare solo quelle da fare. Lo stato resta salvato per ciascun figlio.
 - **Prepara lo zaino:** crea materiali da portare ogni giorno o per una materia. La checklist segue l’orario ricostruito; le spunte sono separate per giorno e per figlio.
-- **Notifiche Home Assistant:** in **Impostazioni → Notifiche nell’app Home Assistant**, premi **Carica dispositivi**, scegli il telefono del genitore, seleziona le categorie, attiva e salva. Poi usa **Invia una prova**. Le notifiche sono disattivate finché non le configuri, separatamente per ogni figlio; Telegram resta disponibile.
+- **Notifiche Home Assistant:** in **Impostazioni → Notifiche nell’app Home Assistant**, premi **Carica dispositivi**, seleziona uno o più dispositivi destinatari, seleziona le categorie, attiva e salva. Poi usa **Invia una prova**. Le notifiche sono disattivate finché non le configuri, separatamente per ogni figlio; Telegram resta disponibile.
 - **Documenti da leggere:** segna comunicazioni e singoli allegati come letti, salva i preferiti e scegli una data in **Ricordamelo il**. Il promemoria viene inviato via HA al primo controllo utile da quella data, se abiliti la categoria documenti e ci sono elementi ancora da leggere. Le spunte sono locali: non inviano la presa visione ad Argo.
 - **Ricerca globale:** cerca nel registro del figlio selezionato tra compiti, voti, lezioni, promemoria, comunicazioni e nomi degli allegati, ignorando accenti e maiuscole.
 
@@ -247,3 +247,7 @@ Per problemi introdotti dalle modifiche di questo fork, apri una segnalazione su
 Se vuoi sostenere l’autore originale, il suo link è [Offri un caffè a elbarto8383](https://paypal.me/elbarto83).
 
 Distribuito con [licenza MIT](LICENSE), conservando l’attribuzione del progetto originale.
+
+### Notifiche su più dispositivi (2.4.5)
+
+In Impostazioni → Notifiche nell’app Home Assistant, carica i dispositivi, spunta quelli desiderati e salva. La selezione è separata per figlio; le categorie si applicano a tutti i dispositivi selezionati. Il destinatario già configurato viene mantenuto. “Invia una prova” usa i destinatari salvati e indica gli invii accettati da Home Assistant, senza garantire la ricezione sul telefono. Rimuovi dalla selezione eventuali dispositivi non più disponibili.

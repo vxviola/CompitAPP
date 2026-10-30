@@ -133,7 +133,8 @@
 
     const form = document.getElementById('ha-notify-form');
     if (form) {
-        const select = document.getElementById('ha-notify-service');
+        const devices = document.getElementById('ha-notify-services');
+        const selectedDevices = () => Array.from(devices.querySelectorAll('[name=ha-service]:checked')).map(c => c.value);
         const status = document.getElementById('ha-notify-status');
         const load = document.getElementById('ha-notify-load');
         load.onclick = async function () {
@@ -142,11 +143,19 @@
                 const r = await fetch(endpoint('/api/ha/servizi'), {cache: 'no-store'});
                 const data = await r.json();
                 if (!r.ok) throw new Error(data.errore);
-                const selected = select.value;
-                select.replaceChildren(new Option('Scegli un dispositivo', ''));
-                data.servizi.forEach(function (s) { select.appendChild(new Option(s.nome + ' · ' + s.id, s.id)); });
-                select.value = selected;
-                status.textContent = data.servizi.length ? 'Scegli il destinatario e salva.' : 'Nessun dispositivo disponibile. Collega l’app Companion al tuo Home Assistant.';
+                const selected = new Set(selectedDevices());
+                const available = new Map(data.servizi.map(s => [s.id, s.nome]));
+                const legend = document.createElement('legend'); legend.textContent = 'Dispositivi destinatari';
+                devices.replaceChildren(legend);
+                new Set([...selected, ...available.keys()]).forEach(function (id) {
+                    const label = document.createElement('label'); label.className = 'filter-check';
+                    const input = document.createElement('input'); input.type = 'checkbox';
+                    input.name = 'ha-service'; input.value = id; input.checked = selected.has(id);
+                    const text = document.createElement('span');
+                    text.textContent = available.has(id) ? available.get(id) + ' · ' + id : id + ' (non disponibile)';
+                    label.append(input, text); devices.appendChild(label);
+                });
+                status.textContent = data.servizi.length ? 'Seleziona uno o più dispositivi e salva. Rimuovi eventuali dispositivi non disponibili.' : 'Nessun dispositivo disponibile. Collega l’app Companion al tuo Home Assistant.';
             } catch (e) { status.textContent = e.message || 'Home Assistant non raggiungibile.'; }
             finally { load.disabled = false; }
         };
@@ -155,15 +164,18 @@
             const submit = form.querySelector('[type=submit]'); submit.disabled = true;
             try {
                 await salva('/api/ha/notifiche', {attive: document.getElementById('ha-notify-enabled').checked,
-                    servizio: select.value, eventi: Array.from(form.querySelectorAll('[name=ha-event]:checked')).map(c => c.value)});
+                    servizi: selectedDevices(), eventi: Array.from(form.querySelectorAll('[name=ha-event]:checked')).map(c => c.value)});
                 status.textContent = 'Preferenze salvate per ' + ui.studente + '.';
             } catch (error) { status.textContent = error.message; }
             finally { submit.disabled = false; }
         };
         document.getElementById('ha-notify-test').onclick = async function () {
             const b = this; b.disabled = true;
-            try { await salva('/api/ha/test', {}); status.textContent = 'Notifica di prova inviata al destinatario salvato.'; }
-            catch (_) { status.textContent = 'Salva prima un destinatario attivo e almeno una categoria, poi riprova.'; }
+            try {
+                const r = await fetch(endpoint('/api/ha/test'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'});
+                const data = await r.json();
+                status.textContent = data.totale ? 'Prova: ' + data.inviati + ' invii riusciti su ' + data.totale + (data.falliti ? '. Alcuni dispositivi non hanno accettato la notifica.' : '.') : 'Salva prima almeno un dispositivo attivo e una categoria.';
+            } catch (_) { status.textContent = 'Prova non riuscita: verifica il collegamento e riprova.'; }
             finally { b.disabled = false; }
         };
     }

@@ -99,7 +99,7 @@ class FunzioniTest(DatabaseFixture, unittest.TestCase):
             for page in ('/ricerca','/zaino'):
                 r=self.client.get(prefix+page,query_string={'studente':self.nome})
                 self.assertEqual(r.status_code,200)
-                self.assertIn(prefix+'/static/funzioni.js?v=240',r.text)
+                self.assertIn(prefix+'/static/funzioni.js?v=245',r.text)
                 self.assertIn('Anna &amp; Leo',r.text)
         r=self.client.get('/zaino',headers={'X-Ingress-Path':'/api/hassio_ingress/reale'},query_string={'studente':self.nome})
         self.assertIn('/api/hassio_ingress/reale/zaino',r.text)
@@ -150,3 +150,55 @@ class FunzioniTest(DatabaseFixture, unittest.TestCase):
             ha_client.promemoria_documenti([STUDENTI[0]])
             ha_client.promemoria_documenti([STUDENTI[0]])
             self.assertEqual(send.call_count,2)
+
+    def test_multi_destinatari_duplicati_e_figli_separati(self):
+        ids = ['notify.mobile_app_uno', 'notify.mobile_app_due']
+        with patch('ha_client.servizi', return_value=[{'id': s} for s in ids]):
+            r = self.post('/api/ha/notifiche', {'attive': True, 'servizi': ids + ids, 'eventi': ['voti']})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(ha_client.configurazione(self.nome)['servizi'], ids)
+        self.assertEqual(ha_client.configurazione('Luca')['servizi'], [])
+        with patch('ha_client._headers', return_value={}), patch('ha_client._apertura', return_value='/'), patch('ha_client.requests.post') as send:
+            self.assertTrue(ha_client.invia(self.nome, 'voti', 'Prova', 'Test'))
+            self.assertEqual(send.call_count, 2)
+            self.assertEqual([c.args[0].rsplit('/', 1)[1] for c in send.call_args_list], ['mobile_app_uno', 'mobile_app_due'])
+
+    def test_vecchia_configurazione_conservata_senza_migrazione(self):
+        conn = models.get_db()
+        conn.execute('INSERT OR REPLACE INTO meta(chiave,valore) VALUES (?,?)', ('ha_notify:' + self.nome, json.dumps({'attive': True, 'servizio': 'notify.mobile_app_vecchio', 'eventi': ['voti']})))
+        conn.commit(); conn.close()
+        self.assertEqual(ha_client.configurazione(self.nome)['servizi'], ['notify.mobile_app_vecchio'])
+
+    def test_errore_parziale_non_blocca_secondo_dispositivo(self):
+        ids = ['notify.mobile_app_uno', 'notify.mobile_app_due']
+        with patch('ha_client.servizi', return_value=[{'id': s} for s in ids]):
+            ha_client.salva(self.nome, {'attive': True, 'servizi': ids, 'eventi': ['voti']})
+        with patch('ha_client._headers', return_value={}), patch('ha_client._apertura', return_value='/'), patch('ha_client.requests.post', side_effect=[ha_client.requests.ConnectionError(), Mock()]) as send:
+            result = self.post('/api/ha/test', {})
+        self.assertEqual(send.call_count, 2)
+        self.assertEqual(result.status_code, 502)
+        self.assertEqual(result.json, {'ok': False, 'totale': 2, 'inviati': 1, 'falliti': 1})
+
+    def test_destinatari_non_validi_non_sovrascrivono_configurazione(self):
+        with patch('ha_client.servizi', return_value=[{'id': 'notify.mobile_app_uno'}]):
+            ha_client.salva(self.nome, {'attive': True, 'servizi': ['notify.mobile_app_uno'], 'eventi': ['voti']})
+            for invalid in [[], 'notify.mobile_app_uno', [None], ['switch.turn_on'], ['notify.mobile_app_assente']]:
+                r = self.post('/api/ha/notifiche', {'attive': True, 'servizi': invalid, 'eventi': ['voti']})
+                self.assertEqual(r.status_code, 400)
+                self.assertEqual(ha_client.configurazione(self.nome)['servizi'], ['notify.mobile_app_uno'])
+
+    def test_configurazione_mostra_tutti_destinatari_salvati(self):
+        with patch('ha_client.servizi', return_value=[{'id': 'notify.mobile_app_uno'}, {'id': 'notify.mobile_app_due'}]):
+            ha_client.salva(self.nome, {'attive': True, 'servizi': ['notify.mobile_app_uno', 'notify.mobile_app_due'], 'eventi': ['voti']})
+        html = self.client.get('/configurazione', query_string={'studente': self.nome}).text
+        self.assertIn('value="notify.mobile_app_uno" checked', html)
+        self.assertIn('value="notify.mobile_app_due" checked', html)
+
+    def test_promemoria_parziale_riprova_solo_dispositivo_fallito(self):
+        ids = ['notify.mobile_app_uno', 'notify.mobile_app_due']
+        with patch('ha_client.servizi', return_value=[{'id': s} for s in ids]):
+            ha_client.salva(self.nome, {'attive': True, 'servizi': ids, 'eventi': ['documenti']})
+        with patch('ha_client._invia_dispositivo', side_effect=[True, False, True]) as send:
+            self.assertFalse(ha_client.invia(self.nome, 'documenti', 'Titolo', 'Test', promemoria_id=[42, '2026-10-30']))
+            self.assertTrue(ha_client.invia(self.nome, 'documenti', 'Titolo', 'Test', promemoria_id=[42, '2026-10-30']))
+            self.assertEqual([c.args[0] for c in send.call_args_list], [ids[0], ids[1], ids[1]])

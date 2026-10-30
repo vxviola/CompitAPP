@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4.5 — notifiche Home Assistant su più dispositivi
+
+- Selezione esplicita di più dispositivi per ogni figlio, conservando il destinatario delle configurazioni precedenti. Le categorie selezionate si applicano a tutti i dispositivi scelti.
+- Invii indipendenti: un errore non blocca gli altri destinatari; la prova mostra quanti invii sono riusciti.
+- Promemoria documenti: dopo un errore parziale, riprova solo i destinatari ancora da raggiungere.
+- I dispositivi non più disponibili restano visibili e possono essere rimossi senza perdere le altre selezioni.
+
 ## 2.4.4 — errori Argo visibili e avviso Home Assistant
 
 - Avviso persistente in Home Assistant quando il ciclo di sincronizzazione fallisce, con indicazione dell’errore di accesso quando rilevato. Un solo avviso per installazione, senza nomi, credenziali o token; rimozione automatica dopo un ciclo riuscito per tutti i profili. Indipendente dalle notifiche scolastiche configurate per telefono o Telegram.

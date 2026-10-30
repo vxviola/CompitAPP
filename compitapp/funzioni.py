@@ -223,5 +223,7 @@ def test_notifica_ha(prefix=None):
     nome = _studente(True)
     cfg = ha_client.configurazione(nome)
     categoria = next(iter(cfg['eventi']), '')
-    ok = ha_client.invia(nome, categoria, 'UniScuola · prova', 'Le notifiche di ' + nome + ' sono configurate.', '/?' + urlencode({'studente': nome}))
-    return jsonify(ok=ok), 200 if ok else 502
+    esiti = ha_client.invia_dettaglio(nome, categoria, 'UniScuola · prova', 'Le notifiche di ' + nome + ' sono configurate.', '/?' + urlencode({'studente': nome}))
+    ok = bool(esiti) and all(esiti.values())
+    return jsonify(ok=ok, inviati=sum(esiti.values()), falliti=sum(not v for v in esiti.values()),
+                   totale=len(esiti)), 200 if ok else 502

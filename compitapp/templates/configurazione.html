@@ -28,10 +28,10 @@
     </style>
 
     <section class="card"><div class="card-header"><h2 class="card-title">Notifiche nell’app Home Assistant</h2></div>
-        <p class="feature-note">Scegli il dispositivo del genitore per {{ ui_studente }}. Puoi tenere attivi anche i messaggi Telegram. Nessun dispositivo viene selezionato automaticamente.</p>
+        <p class="feature-note">Scegli uno o più dispositivi per {{ ui_studente }}. Puoi tenere attivi anche i messaggi Telegram. Nessun dispositivo viene selezionato automaticamente.</p>
         <form id="ha-notify-form" class="feature-form">
             <label class="filter-check"><input id="ha-notify-enabled" type="checkbox" {% if config.ha_notify.attive %}checked{% endif %}>Attiva le notifiche per questo figlio</label>
-            <label>Destinatario<select id="ha-notify-service"><option value="">Scegli un dispositivo</option>{% if config.ha_notify.servizio %}<option value="{{ config.ha_notify.servizio }}" selected>{{ config.ha_notify.servizio }}</option>{% endif %}</select></label>
+            <fieldset id="ha-notify-services" class="notification-events"><legend>Dispositivi destinatari</legend>{% for servizio in config.ha_notify.servizi %}<label class="filter-check"><input type="checkbox" name="ha-service" value="{{ servizio }}" checked>{{ servizio }}</label>{% endfor %}</fieldset>
             <button class="feature-button secondary" type="button" id="ha-notify-load">Carica dispositivi da Home Assistant</button>
             <fieldset class="notification-events"><legend>Quando avvisarmi</legend>{% for value,label in [('compiti','Nuovi compiti'),('bacheca','Comunicazioni'),('voti','Voti'),('assenze','Assenze'),('note','Note disciplinari'),('promemoria','Promemoria della scuola'),('documenti','Promemoria dei documenti da leggere')] %}<label class="filter-check"><input type="checkbox" name="ha-event" value="{{ value }}" {% if value in config.ha_notify.eventi %}checked{% endif %}>{{ label }}</label>{% endfor %}</fieldset>
             <div class="quick-tools"><button class="feature-button" type="submit">Salva notifiche</button><button class="feature-button secondary" type="button" id="ha-notify-test">Invia una prova</button></div>

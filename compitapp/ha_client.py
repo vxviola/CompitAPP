@@ -55,7 +55,14 @@ def configurazione(nome):
             cfg = json.loads(row['valore']) if row else {}
         except (ValueError, TypeError):
             cfg = {}
-        return {'attive': cfg.get('attive') is True, 'servizio': cfg.get('servizio', ''),
+        if not isinstance(cfg, dict):
+            cfg = {}
+        try:
+            destinatari = _destinatari(cfg)
+        except ValueError:
+            destinatari = []
+        return {'attive': cfg.get('attive') is True, 'servizi': destinatari,
+                'servizio': destinatari[0] if destinatari else '',
                 'eventi': [e for e in cfg.get('eventi', EVENTI) if e in EVENTI]}
     finally:
         conn.close()
@@ -80,16 +87,29 @@ def servizi():
     return sorted(result, key=lambda s: s['nome'])
 
 
+def _destinatari(cfg):
+    valori = cfg.get('servizi') if 'servizi' in cfg else [cfg.get('servizio', '')]
+    if 'servizi' not in cfg and valori == ['']:
+        valori = []
+    if (not isinstance(valori, list) or len(valori) > 50
+            or any(not isinstance(v, str) or len(v) > 150 or not (
+                v == 'persistent_notification.create'
+                or re.fullmatch(r'notify\.mobile_app_[a-z0-9_]+', v)) for v in valori)):
+        raise ValueError('Seleziona dispositivi di notifica validi')
+    return list(dict.fromkeys(valori))
+
+
 def salva(nome, cfg):
-    servizio = cfg.get('servizio', '')
-    if (not isinstance(cfg.get('attive'), bool) or not isinstance(cfg.get('eventi'), list)
-            or not isinstance(servizio, str) or len(servizio) > 150):
+    destinatari = _destinatari(cfg)
+    if not isinstance(cfg.get('attive'), bool) or not isinstance(cfg.get('eventi'), list):
         raise ValueError('Configurazione non valida')
     if any(e not in EVENTI for e in cfg['eventi']):
         raise ValueError('Categoria di notifica non valida')
-    if cfg['attive'] and servizio not in {s['id'] for s in servizi()}:
-        raise ValueError('Seleziona un dispositivo di Home Assistant disponibile')
-    dati = {'attive': cfg['attive'], 'servizio': servizio, 'eventi': list(dict.fromkeys(cfg['eventi']))}
+    if cfg['attive']:
+        disponibili = {s['id'] for s in servizi()}
+        if not destinatari or any(s not in disponibili for s in destinatari):
+            raise ValueError('Seleziona almeno un dispositivo disponibile; rimuovi quelli non disponibili')
+    dati = {'attive': cfg['attive'], 'servizi': destinatari, 'eventi': list(dict.fromkeys(cfg['eventi']))}
     conn = get_db()
     try:
         conn.execute('INSERT OR REPLACE INTO meta(chiave,valore) VALUES (?,?)', ('ha_notify:' + nome, json.dumps(dati)))
@@ -112,13 +132,7 @@ def _apertura(percorso):
     return '/app/' + _slug + '?' + urlencode({'uniscuola': percorso}) if _slug else '/'
 
 
-def invia(nome, categoria, titolo, messaggio, percorso='/'):
-    cfg = configurazione(nome)
-    if not cfg['attive'] or categoria not in cfg['eventi']:
-        return False
-    servizio = cfg['servizio']
-    if not (servizio == 'persistent_notification.create' or re.fullmatch(r'notify\.mobile_app_[a-z0-9_]+', servizio)):
-        return False
+def _invia_dispositivo(servizio, titolo, messaggio, percorso):
     dominio, azione = servizio.split('.', 1)
     payload = {'title': titolo[:150], 'message': str(messaggio)[:1500]}
     if dominio == 'notify':
@@ -132,6 +146,37 @@ def invia(nome, categoria, titolo, messaggio, percorso='/'):
     except (requests.RequestException, RuntimeError):
         print('[HA] Notifica non consegnata; controllare il dispositivo nelle impostazioni')
         return False
+
+
+def invia_dettaglio(nome, categoria, titolo, messaggio, percorso='/'):
+    cfg = configurazione(nome)
+    if not cfg['attive'] or categoria not in cfg['eventi']:
+        return {}
+    return {s: _invia_dispositivo(s, titolo, messaggio, percorso) for s in cfg['servizi']}
+
+
+def invia(nome, categoria, titolo, messaggio, percorso='/', promemoria_id=None):
+    if promemoria_id is None:
+        esiti = invia_dettaglio(nome, categoria, titolo, messaggio, percorso)
+        return bool(esiti) and all(esiti.values())
+    cfg = configurazione(nome)
+    if not cfg['attive'] or categoria not in cfg['eventi'] or not cfg['servizi']:
+        return False
+    conn = get_db()
+    try:
+        ok = True
+        for servizio in cfg['servizi']:
+            chiave = 'ha_consegna:' + json.dumps([nome, promemoria_id, servizio])
+            if conn.execute('SELECT 1 FROM meta WHERE chiave=?', (chiave,)).fetchone():
+                continue
+            if _invia_dispositivo(servizio, titolo, messaggio, percorso):
+                conn.execute('INSERT OR REPLACE INTO meta(chiave,valore) VALUES (?,?)', (chiave, '1'))
+                conn.commit()
+            else:
+                ok = False
+        return ok
+    finally:
+        conn.close()
 
 
 def promemoria_documenti(studenti):
@@ -155,7 +200,8 @@ def promemoria_documenti(studenti):
                 if inviato and inviato['valore'] == r['promemoria_locale']:
                     continue
                 ok = invia(nome, 'documenti', f'UniScuola · {nome} · Da leggere', r['titolo'],
-                           '/bacheca?' + urlencode({'studente': nome}) + '#msg-' + str(r['id']))
+                           '/bacheca?' + urlencode({'studente': nome}) + '#msg-' + str(r['id']),
+                           promemoria_id=[r['id'], r['promemoria_locale']])
                 if ok:
                     conn.execute('INSERT OR REPLACE INTO meta(chiave,valore) VALUES (?,?)', (chiave, r['promemoria_locale']))
                     conn.commit()
