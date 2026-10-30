@@ -28,7 +28,7 @@
     </style>
 
     <section class="card"><div class="card-header"><h2 class="card-title">Notifiche nell’app Home Assistant</h2></div>
-        <p class="feature-note">Scegli uno o più dispositivi per {{ ui_studente }}. Puoi tenere attivi anche i messaggi Telegram. Nessun dispositivo viene selezionato automaticamente.</p>
+        <p class="feature-note">Scegli uno o più dispositivi per {{ ui_studente }}. Puoi tenere attivi anche i messaggi Telegram. Sono disponibili anche le entità di notifica, senza rinominarle. Se lo stesso telefono compare come servizio e come entità, seleziona una sola voce per evitare notifiche doppie. Nessun dispositivo viene selezionato automaticamente.</p>
         <form id="ha-notify-form" class="feature-form">
             <label class="filter-check"><input id="ha-notify-enabled" type="checkbox" {% if config.ha_notify.attive %}checked{% endif %}>Attiva le notifiche per questo figlio</label>
             <fieldset id="ha-notify-services" class="notification-events"><legend>Dispositivi destinatari</legend>{% for servizio in config.ha_notify.servizi %}<label class="filter-check"><input type="checkbox" name="ha-service" value="{{ servizio }}" checked>{{ servizio }}</label>{% endfor %}</fieldset>

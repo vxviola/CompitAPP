@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4.6 — supporto alle entità di notifica Home Assistant
+
+- Rilevate anche le entità notify.*, quando Home Assistant espone notify.send_message. Non occorre rinominarle con il prefisso mobile_app.
+- Servizi esistenti e configurazioni precedenti conservati; entità e servizi omonimi identificati separatamente. Nessuna selezione automatica.
+- Invio alle entità con destinatario esplicito e messaggio comprensivo del titolo, senza parametri specifici Companion. L’apertura diretta di UniScuola resta disponibile per i servizi mobile_app.
+- Entità non disponibili escluse dai nuovi destinatari; quelle già salvate restano visibili e rimovibili.
+
 ## 2.4.5 — notifiche Home Assistant su più dispositivi
 
 - Selezione esplicita di più dispositivi per ogni figlio, conservando il destinatario delle configurazioni precedenti. Le categorie selezionate si applicano a tutti i dispositivi scelti.

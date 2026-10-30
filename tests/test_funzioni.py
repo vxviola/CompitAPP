@@ -202,3 +202,15 @@ class FunzioniTest(DatabaseFixture, unittest.TestCase):
             self.assertFalse(ha_client.invia(self.nome, 'documenti', 'Titolo', 'Test', promemoria_id=[42, '2026-10-30']))
             self.assertTrue(ha_client.invia(self.nome, 'documenti', 'Titolo', 'Test', promemoria_id=[42, '2026-10-30']))
             self.assertEqual([c.args[0] for c in send.call_args_list], [ids[0], ids[1], ids[1]])
+
+    def test_entity_configuration_saved_rendered_and_removed_without_migration(self):
+        targets = ['entity:notify.motorola_razn_60_ultra', 'notify.mobile_app_demo']
+        with patch('ha_client.servizi', return_value=[{'id': t} for t in targets]):
+            self.assertEqual(self.post('/api/ha/notifiche', {'attive': True, 'servizi': targets, 'eventi': ['voti']}).status_code, 200)
+        self.assertEqual(ha_client.configurazione(self.nome)['servizi'], targets)
+        html = self.client.get('/configurazione', query_string={'studente': self.nome}).text
+        self.assertIn('value="entity:notify.motorola_razn_60_ultra" checked', html)
+        with patch('ha_client.servizi', return_value=[{'id': targets[1]}]):
+            self.assertEqual(self.post('/api/ha/notifiche', {'attive': True, 'servizi': targets, 'eventi': ['voti']}).status_code, 400)
+            self.assertEqual(ha_client.configurazione(self.nome)['servizi'], targets)
+            self.assertEqual(self.post('/api/ha/notifiche', {'attive': True, 'servizi': targets[1:], 'eventi': ['voti']}).status_code, 200)

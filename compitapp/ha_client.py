@@ -79,11 +79,21 @@ def servizi():
     r = requests.get('http://supervisor/core/api/services', headers=_headers(), timeout=(3, 8))
     r.raise_for_status()
     result = []
-    for dominio in r.json():
+    domini = r.json()
+    entita_supportate = any(d.get('domain') == 'notify' and 'send_message' in d.get('services', {}) for d in domini)
+    for dominio in domini:
         for servizio, info in dominio.get('services', {}).items():
             nome = dominio.get('domain', '') + '.' + servizio
             if nome == 'persistent_notification.create' or (dominio.get('domain') == 'notify' and servizio.startswith('mobile_app_')):
-                result.append({'id': nome, 'nome': info.get('name') or nome})
+                result.append({'id': nome, 'nome': (info.get('name') or nome) + ' (servizio)'})
+    if entita_supportate:
+        stati = requests.get('http://supervisor/core/api/states', headers=_headers(), timeout=(3, 8))
+        stati.raise_for_status()
+        for stato in stati.json():
+            entity_id = stato.get('entity_id', '')
+            if re.fullmatch(r'notify\.[a-z0-9_]+', entity_id) and stato.get('state') != 'unavailable':
+                result.append({'id': 'entity:' + entity_id,
+                               'nome': (stato.get('attributes', {}).get('friendly_name') or entity_id) + ' (entità)'})
     return sorted(result, key=lambda s: s['nome'])
 
 
@@ -94,7 +104,8 @@ def _destinatari(cfg):
     if (not isinstance(valori, list) or len(valori) > 50
             or any(not isinstance(v, str) or len(v) > 150 or not (
                 v == 'persistent_notification.create'
-                or re.fullmatch(r'notify\.mobile_app_[a-z0-9_]+', v)) for v in valori)):
+                or re.fullmatch(r'notify\.mobile_app_[a-z0-9_]+', v)
+                or re.fullmatch(r'entity:notify\.[a-z0-9_]+', v)) for v in valori)):
         raise ValueError('Seleziona dispositivi di notifica validi')
     return list(dict.fromkeys(valori))
 
@@ -133,9 +144,20 @@ def _apertura(percorso):
 
 
 def _invia_dispositivo(servizio, titolo, messaggio, percorso):
-    dominio, azione = servizio.split('.', 1)
-    payload = {'title': titolo[:150], 'message': str(messaggio)[:1500]}
-    if dominio == 'notify':
+    # Un ID tipizzato evita ambiguità tra un servizio e un'entità omonima.
+    if servizio.startswith('entity:'):
+        entity_id = servizio.removeprefix('entity:')
+        if not re.fullmatch(r'notify\.[a-z0-9_]+', entity_id):
+            return False
+        dominio, azione = 'notify', 'send_message'
+        # Solo i campi comuni: non tutte le entità supportano titolo o dati Companion.
+        payload = {'entity_id': entity_id, 'message': (titolo[:150] + '\n' + str(messaggio)[:1500]).strip()}
+    else:
+        if not (servizio == 'persistent_notification.create' or re.fullmatch(r'notify\.mobile_app_[a-z0-9_]+', servizio)):
+            return False
+        dominio, azione = servizio.split('.', 1)
+        payload = {'title': titolo[:150], 'message': str(messaggio)[:1500]}
+    if dominio == 'notify' and azione != 'send_message':
         url = _apertura(percorso)
         payload['data'] = {'url': url, 'clickAction': url}
     try:

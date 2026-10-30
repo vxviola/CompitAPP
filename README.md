@@ -251,3 +251,7 @@ Distribuito con [licenza MIT](LICENSE), conservando l’attribuzione del progett
 ### Notifiche su più dispositivi (2.4.5)
 
 In Impostazioni → Notifiche nell’app Home Assistant, carica i dispositivi, spunta quelli desiderati e salva. La selezione è separata per figlio; le categorie si applicano a tutti i dispositivi selezionati. Il destinatario già configurato viene mantenuto. “Invia una prova” usa i destinatari salvati e indica gli invii accettati da Home Assistant, senza garantire la ricezione sul telefono. Rimuovi dalla selezione eventuali dispositivi non più disponibili.
+
+### Entità di notifica (2.4.6)
+
+La lista include anche le entità `notify.*` disponibili tramite `notify.send_message`, ad esempio `notify.motorola_razn_60_ultra`. Non serve rinominarle. Premi **Carica dispositivi da Home Assistant**, scegli la voce indicata come entità, salva e invia una prova. Se il telefono compare anche come servizio, seleziona una sola delle due voci per evitare duplicati. Per le entità viene inviato il titolo nel testo; il collegamento diretto alla dashboard resta supportato sui servizi Companion già esistenti. Non vengono cercate azioni generiche tramite device_id.
