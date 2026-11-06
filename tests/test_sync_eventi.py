@@ -272,7 +272,7 @@ class EventiTest(DatabaseFixture, unittest.TestCase):
 
 class TrasportoTest(unittest.TestCase):
     def test_richiesta_dal_punto_preciso_e_mai_ripiego_giornaliero(self):
-        risposta=Mock();risposta.json.return_value={'success':True,'data':{'dati':[{'voti':[]}]}}
+        risposta=Mock(status_code=200);risposta.json.return_value={'success':True,'data':{'dati':[{'voti':[]}]}}
         with patch('argo_client.get_session',return_value=Mock()),patch('argo_client.requests.post',return_value=risposta) as post:
             self.assertEqual(argo_client.dashboard_sync(STUDENTI[0],datetime(2026,8,25)),{'voti':[]})
             self.assertEqual(post.call_args.kwargs['json']['dataultimoaggiornamento'],'2026-08-25 00:00:00')
@@ -282,6 +282,7 @@ class TrasportoTest(unittest.TestCase):
 
     def test_risposta_parziale_o_senza_profili_non_e_verificata(self):
         with patch('argo_client.get_session',return_value=Mock()),patch('argo_client.requests.post') as post:
+            post.return_value.status_code = 200
             for payload in ({'data':{'dati':[]}}, {'hasMore':True,'data':{'dati':[{}]}},
                             {'data':{'dati':[{'parziale':True}]}}, {'data':{'dati':[None]}}):
                 post.return_value.json.return_value=payload

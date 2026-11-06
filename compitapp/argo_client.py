@@ -18,6 +18,7 @@ def get_studenti():
         return []
 
 _sessions = {}
+_session_errors = {}
 
 
 def _descrivi_profilo(p):
@@ -153,17 +154,22 @@ def get_session(studente):
                 _sessioni_creata[nome] = time.time()
                 _scegli_profilo(_sessions[nome], studente)
                 print(f"[ARGO] ✅ Sessione creata per {nome}")
+            _session_errors.pop(nome, None)
             return _sessions[nome]
         except Exception as e:
             import sync_state
-            sync_state.errore(nome, "accesso")
+            motivo = e.categoria if isinstance(e, ArgoLoginError) else 'accesso'
+            _session_errors[nome] = motivo
+            sync_state.errore(nome, motivo)
             dettaglio = str(e) if isinstance(e, ArgoLoginError) else "errore_sessione_non_classificato"
             print(f"[ARGO] ❌ Errore sessione {nome}: {dettaglio}")
             _sessions.pop(nome, None)
             return None
 
 def _reset_session(nome):
-    _sessions.pop(nome, None)
+    with _sessione_lock:
+        _sessions.pop(nome, None)
+        _sessioni_creata.pop(nome, None)
 
 _cache_dashboard = {}
 CACHE_SECONDI = 90
@@ -495,22 +501,51 @@ def _dashboard_dal(studente, giorni):
 class ArgoSyncError(Exception):
     """Risposta non verificata: non avanzare il cursore e non cancellare dati locali."""
 
+    def __init__(self, message, categoria='risposta'):
+        super().__init__(message)
+        self.categoria = categoria
+
 
 def dashboard_sync(studente, dal):
     """Delta richiesto da una data precisa. Nessun ripiego sulla sola giornata corrente."""
     from argofamiglia.CONSTANTS import DASHBOARD_OPTIONS
-    session = get_session(studente)
-    if session is None:
-        raise ArgoSyncError('Sessione Argo non disponibile')
-    try:
-        risposta = requests.post(ENDPOINT + 'dashboard/dashboard',
-                                 headers=session._ArgoFamiglia__headers,
-                                 json={'dataultimoaggiornamento': dal.strftime('%Y-%m-%d %H:%M:%S'),
-                                       'opzioni': json.dumps(DASHBOARD_OPTIONS)}, timeout=(10, 60))
-        risposta.raise_for_status()
-        dati = risposta.json()
-    except (requests.RequestException, ValueError):
-        raise ArgoSyncError('Argo non ha restituito un aggiornamento verificabile') from None
+    nome = studente.get('nome', 'default')
+    for tentativo in range(2):
+        session = get_session(studente)
+        if session is None:
+            raise ArgoSyncError('Sessione Argo non disponibile', _session_errors.get(nome, 'accesso'))
+        try:
+            risposta = requests.post(ENDPOINT + 'dashboard/dashboard',
+                                     headers=session._ArgoFamiglia__headers,
+                                     json={'dataultimoaggiornamento': dal.strftime('%Y-%m-%d %H:%M:%S'),
+                                           'opzioni': json.dumps(DASHBOARD_OPTIONS)}, timeout=(10, 60))
+        except requests.RequestException:
+            raise ArgoSyncError('Argo non raggiungibile', 'rete') from None
+        status = risposta.status_code
+        # Only HTTP 401 proves failed authentication. 403 is not a login trigger.
+        if status == 401:
+            # Preserve the existing SPID refresh lifecycle; recovery here is password-only.
+            if studente.get('accesso') == 'spid':
+                raise ArgoSyncError('Accesso Argo rifiutato', 'accesso')
+            with _sessione_lock:
+                if _sessions.get(nome) is session:
+                    _reset_session(nome)
+            if tentativo == 0:
+                print('[SYNC] HTTP=401 recupero_sessione tentativo=1/1')
+                continue
+            raise ArgoSyncError('Accesso Argo rifiutato', 'accesso')
+        if status == 403:
+            raise ArgoSyncError('Accesso ai dati non consentito', 'permessi')
+        if status == 429:
+            raise ArgoSyncError('Limite richieste Argo', 'limite')
+        if status >= 500:
+            raise ArgoSyncError('Servizio Argo non disponibile', 'servizio')
+        try:
+            risposta.raise_for_status()
+            dati = risposta.json()
+        except (requests.RequestException, ValueError):
+            raise ArgoSyncError('Argo non ha restituito un aggiornamento verificabile') from None
+        break
     if (not isinstance(dati, dict) or ('success' in dati and dati['success'] is not True)
             or not isinstance(dati.get('data'), dict)
             or not isinstance(dati['data'].get('dati'), list) or not dati['data']['dati']):

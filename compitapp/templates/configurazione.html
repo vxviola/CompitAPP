@@ -44,8 +44,8 @@
             <span style="font-size:1.3rem">🔌</span>
             <span class="card-title">Stato connessione DiDUP</span>
         </div>
-        <div id="connection-status" class="alert {{ 'alert-danger' if sync_stato.get('esito') == 'errore' else 'alert-success' if sync_stato.get('esito') == 'ok' and not sync_stato.get('in_corso') else 'alert-warning' }}" role="status">
-            {{ 'Errore di accesso o sincronizzazione Argo. I dati mostrati non sono aggiornati.' if sync_stato.get('esito') == 'errore' else 'Ultima sincronizzazione riuscita.' if sync_stato.get('esito') == 'ok' and not sync_stato.get('in_corso') else 'Collegamento da verificare: attendi una sincronizzazione completa.' }}
+        <div id="connection-status" class="alert {{ 'alert-danger' if sync_stato.get('esito') == 'errore' else 'alert-success' if sync_stato.get('livello') == 'ok' else 'alert-warning' }}" role="status">
+            {{ sync_stato.get('messaggio', 'Collegamento da verificare: attendi una sincronizzazione completa.') }}
         </div>
         {% if config.spid %}
         <div class="alert {{ 'alert-info' if config.spid.stato == 'collegato' else 'alert-warning' }}">

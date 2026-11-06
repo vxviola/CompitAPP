@@ -3,6 +3,7 @@ import threading
 import sync_state
 from datetime import date, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.base import STATE_RUNNING
 from apscheduler.triggers.cron import CronTrigger
 import pytz
 
@@ -13,6 +14,20 @@ from notifier import reminder_compiti_domani, sync_sensori_ha
 TZ = pytz.timezone('Europe/Rome')
 ORARIO_REMINDER = os.environ.get('ORARIO_REMINDER', '20:00')
 POLLING_MINUTI = int(os.environ.get('POLLING_MINUTI', 30))
+_scheduler = None
+
+
+def pianificazione_sync():
+    """Return only a future run actually registered in the running scheduler."""
+    from datetime import datetime
+    try:
+        job = _scheduler.get_job('sync_tutto') if _scheduler and _scheduler.state == STATE_RUNNING else None
+        prossimo = job.next_run_time if job else None
+        if prossimo and prossimo > datetime.now(TZ):
+            return prossimo.isoformat(), POLLING_MINUTI
+    except (AttributeError, TypeError):
+        pass
+    return None, POLLING_MINUTI
 
 def _sincronizza_categoria(categoria):
     from sync_argo import sincronizza
@@ -69,9 +84,11 @@ def avvia_sync_manuale():
 
 
 def _esegui_sync():
-    nomi = [s.get('nome', 'Studente') for s in get_studenti()]
+    nomi = []
     fallito = False
     try:
+        nomi = [s.get('nome', 'Studente') for s in get_studenti()]
+        sync_state.pubblica(nomi)
         _ciclo_sync()
     except Exception:
         fallito = True
@@ -191,17 +208,20 @@ def heartbeat():
     """Log ogni 5 minuti per verificare che lo scheduler giri"""
     from datetime import datetime
     print(f"[SCHEDULER] ❤️ Heartbeat — {datetime.now().strftime('%H:%M:%S')}")
+    sync_state.pubblica([s.get('nome', 'Studente') for s in get_studenti()])
 
 def avvia_scheduler():
+    global _scheduler
     scheduler = BackgroundScheduler(timezone=TZ)
     scheduler.add_job(sync_tutto, 'interval', minutes=POLLING_MINUTI, id='sync_tutto')
     scheduler.add_job(heartbeat, 'interval', minutes=5, id='heartbeat')
     try:
         ora, minuto = ORARIO_REMINDER.split(':')
-        scheduler.add_job(reminder_sera, CronTrigger(hour=int(ora), minute=int(minuto)), id='reminder_sera')
+        scheduler.add_job(reminder_sera, CronTrigger(hour=int(ora), minute=int(minuto), timezone=TZ), id='reminder_sera')
     except Exception:
-        scheduler.add_job(reminder_sera, CronTrigger(hour=20, minute=0), id='reminder_sera')
+        scheduler.add_job(reminder_sera, CronTrigger(hour=20, minute=0, timezone=TZ), id='reminder_sera')
     scheduler.start()
+    _scheduler = scheduler
     print(f"[SCHEDULER] Avviato — polling ogni {POLLING_MINUTI} min, reminder alle {ORARIO_REMINDER}")
     sync_tutto()
     return scheduler

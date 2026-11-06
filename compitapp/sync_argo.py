@@ -408,10 +408,11 @@ def sincronizza(studenti, categorie=CATEGORIE):
                     sezione = argo_client.dashboard_sync(studente, inizio_anno(ora))
                 for p in piani.values():
                     p['silenzioso'] = True
-        except Exception:
+        except Exception as exc:
             riuscito = False
-            sync_state.errore(nome)
-            print(f'[SYNC] {nome}: risposta Argo non verificata; dati e cursori conservati')
+            motivo = exc.categoria if isinstance(exc, argo_client.ArgoSyncError) else 'sincronizzazione'
+            sync_state.errore(nome, motivo)
+            print(f'[SYNC] categoria={motivo}; dati e cursori conservati')
             continue
         for categoria in categorie:
             conn = None

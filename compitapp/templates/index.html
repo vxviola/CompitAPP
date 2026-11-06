@@ -2,6 +2,14 @@
 {% from "ui_macros.html" import icon, task with context %}
 {% block content %}
 <div class="container">
+    <section id="sync-diagnostics" class="sync-diagnostics {{ sync_stato.get('livello', 'attesa') }}" aria-label="Diagnostica sincronizzazione" role="status" aria-live="polite" aria-atomic="true">
+        <h2>Stato del registro</h2>
+        <strong id="diagnostic-message">{{ sync_stato.get('messaggio', 'In attesa del primo controllo') }}</strong>
+        <p id="diagnostic-last">Ultima sincronizzazione riuscita: {{ sync_etichetta or 'non disponibile' }}</p>
+        <p id="diagnostic-next">{% if sync_stato.get('prossimo_tentativo') %}Prossimo controllo: {{ sync_stato['prossimo_tentativo'] }}{% else %}Nessun prossimo controllo confermato.{% endif %}</p>
+        <p id="diagnostic-action">{{ sync_stato.get('azione', 'Verifica il collegamento nelle Impostazioni.') }}</p>
+        <a class="text-link" href="{{ ui_link('/configurazione') }}">Apri le Impostazioni</a>
+    </section>
     <section class="card welcome-card" aria-label="Riepilogo della giornata">
         <div>
             <div class="eyebrow">{{ data_oggi }}</div>

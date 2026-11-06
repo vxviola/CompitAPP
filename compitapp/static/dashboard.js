@@ -8,7 +8,8 @@
         if (ui.studente) url.searchParams.set('studente', ui.studente);
         return url;
     };
-    let toastTimer, syncTimer, waiting = false, lastSeen = null;
+    let toastTimer, syncTimer, waiting = false;
+    let lastSeen = $('sync-info')?.getAttribute?.('data-last-success') || null;
     window.navTo = function (page) { location.href = api(page); return false; };
     window.showToast = function (text, ms, error) {
         const el = $('toast');
@@ -84,6 +85,7 @@
         });
     });
     function statusText(state) {
+        if (state.messaggio) return state.messaggio;
         if (state.esito === 'errore') return (state.motivo === 'accesso' ? 'Errore di accesso Argo' : 'Errore di sincronizzazione') + (state.in_corso ? ' · nuovo tentativo in corso' : ' · dati non aggiornati');
         if (state.in_corso) return 'Sincronizzazione in corso…';
         return state.ultimo_successo ? 'Ultimo aggiornamento' : 'In attesa del primo controllo';
@@ -103,16 +105,24 @@
         const info = $('sync-info');
         if (info) {
             info.classList.toggle('is-error', state.esito === 'errore');
-            info.classList.toggle('is-ok', state.esito === 'ok' && !state.in_corso);
+            info.classList.toggle('is-ok', state.esito === 'ok' && !state.in_corso && !state.dati_obsoleti);
             $('sync-label').textContent = statusText(state);
             $('sync-time').textContent = timeText(state.ultimo_successo);
         }
         const connection = $('connection-status');
         if (connection) {
-            connection.className = 'alert ' + (state.esito === 'errore' ? 'alert-danger' : state.esito === 'ok' && !state.in_corso ? 'alert-success' : 'alert-warning');
+            connection.className = 'alert ' + (state.esito === 'errore' ? 'alert-danger' : state.esito === 'ok' && !state.in_corso && !state.dati_obsoleti ? 'alert-success' : 'alert-warning');
             connection.textContent = statusText(state) + (state.ultimo_successo ? ' · Ultimo successo: ' + timeText(state.ultimo_successo) : '');
         }
         if ($('dashboard-sync')) $('dashboard-sync').textContent = statusText(state) + (state.ultimo_successo ? ' · ' + timeText(state.ultimo_successo) : '');
+        if ($('sync-diagnostics')) {
+            $('sync-diagnostics').className = 'sync-diagnostics ' + (state.esito === 'errore' ? 'errore' : state.dati_obsoleti || state.in_corso || state.esito !== 'ok' ? 'attesa' : 'ok');
+            $('diagnostic-message').textContent = statusText(state);
+            $('diagnostic-last').textContent = 'Ultima sincronizzazione riuscita: ' + (state.ultimo_successo ? timeText(state.ultimo_successo) : 'non disponibile');
+            const next = new Date(state.prossimo_tentativo);
+            $('diagnostic-next').textContent = state.prossimo_tentativo && next > new Date() ? 'Prossimo controllo: ' + timeText(state.prossimo_tentativo) : 'Nessun prossimo controllo confermato.';
+            $('diagnostic-action').textContent = state.azione || 'Verifica il collegamento nelle Impostazioni.';
+        }
     }
     async function pollSync() {
         clearTimeout(syncTimer);
@@ -133,7 +143,7 @@
             syncTimer = setTimeout(pollSync, state.in_corso ? 2000 : 30000);
         } catch (_) {
             if (waiting) showToast('Connessione interrotta. Il controllo può continuare in background; riprovo a verificarlo.', 6000, true);
-            renderSync({esito: 'errore', ultimo_successo: lastSeen});
+            renderSync({esito: 'errore', ultimo_successo: lastSeen, messaggio: 'Stato non raggiungibile — aggiornamento non verificato', azione: 'Verifica la connessione a UniScuola.'});
             if ($('sync-label')) $('sync-label').textContent = 'Stato non raggiungibile · aggiornamento non verificato';
             syncTimer = setTimeout(pollSync, 15000);
         }

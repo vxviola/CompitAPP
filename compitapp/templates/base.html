@@ -9,9 +9,9 @@
     <script>try{var t=localStorage.getItem('compitapp-theme')||'system';document.documentElement.dataset.theme=t==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):t;}catch(e){}</script>
     <link rel="icon" type="image/png" href="{{ ui_asset('favicon-32x32.png') }}">
     <link rel="apple-touch-icon" href="{{ ui_asset('apple-touch-icon.png') }}">
-    <link rel="stylesheet" href="{{ ui_asset('dashboard.css') }}?v=244">
+    <link rel="stylesheet" href="{{ ui_asset('dashboard.css') }}?v=247">
     <script>window.COMPITAPP={{ {'base': ui_base, 'studente': ui_studente, 'palette': ui_palette}|tojson }};</script>
-    <script src="{{ ui_asset('dashboard.js') }}?v=244" defer></script>
+    <script src="{{ ui_asset('dashboard.js') }}?v=247" defer></script>
     <script src="{{ ui_asset('allegati.js') }}?v=240" defer></script>
     <script src="{{ ui_asset('funzioni.js') }}?v=245" defer></script>
 </head>
@@ -55,7 +55,7 @@
     </nav>
     <div class="nav-caption">Preferenze</div>
     <nav class="nav-list" aria-label="Preferenze">{{ nav_item('/configurazione', 'Impostazioni', 'settings', 'configurazione') }}</nav>
-    <div class="sidebar-foot">{{ icon('leaf', 'sm') }} <strong>Un piccolo aiuto, ogni giorno.</strong>Curato da vxviola · 2.4.1</div>
+    <div class="sidebar-foot">{{ icon('leaf', 'sm') }} <strong>Un piccolo aiuto, ogni giorno.</strong>Curato da vxviola · 2.4.7</div>
 </aside>
 
 <div class="app-main">
@@ -69,7 +69,7 @@
             {% else %}<a class="student-chip" href="{{ ui_link('/configurazione') }}">Configura uno studente</a>{% endfor %}
         </div>
         <div class="top-actions">
-            <div class="sync-info {{ 'is-error' if sync_stato.get('esito') == 'errore' else 'is-ok' if sync_stato.get('esito') == 'ok' and not sync_stato.get('in_corso') else '' }}" id="sync-info" aria-live="polite">
+            <div class="sync-info {{ 'is-error' if sync_stato.get('esito') == 'errore' else 'is-ok' if sync_stato.get('livello') == 'ok' else '' }}" id="sync-info" data-last-success="{{ sync_stato.get('ultimo_successo') or '' }}" aria-live="polite">
                 <span><i class="status-dot"></i><span id="sync-label">{{ ('Errore di accesso Argo' if sync_stato.get('motivo') == 'accesso' else 'Errore di sincronizzazione') if sync_stato.get('esito') == 'errore' else 'Sincronizzazione in corso' if sync_stato.get('in_corso') else 'Ultimo aggiornamento' if sync_stato.get('esito') == 'ok' else 'In attesa del primo controllo' }}</span></span>
                 <strong id="sync-time">{{ sync_etichetta or 'In attesa del primo controllo' }}</strong>
             </div>

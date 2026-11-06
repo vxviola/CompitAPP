@@ -15,7 +15,7 @@ if (customElements.get('uniscuola-card')) return;
  *   addon_slug: ee1c5e4d_compitapp  # facoltativo se c’è una sola UniScuola nella barra laterale
  *   theme: auto                   # auto, light, dark
  */
-const UNISCUOLA_CARD_VERSION = '2.4.0';
+const UNISCUOLA_CARD_VERSION = '2.4.7';
 
 const _slug = (n) => String(n || '').toLowerCase().replace(/ /g, '_');
 const _esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -57,7 +57,7 @@ class CompitappCard extends HTMLElement {
     this._hass = hass;
     // ridisegna solo se i sensori dello studente sono cambiati
     const st = this._stud();
-    const firma = (st ? TILES.map((t) => { const e = hass.states[this._eid(st, t.key)]; return e ? e.last_updated : '-'; }).join('|') : '') + '|' + !!hass.themes?.darkMode + '|' + JSON.stringify(hass.panels || {});
+    const firma = (st ? [...TILES, {key:'diagnostica'}].map((t) => { const e = hass.states[this._eid(st, t.key)]; return e ? e.last_updated : '-'; }).join('|') : '') + '|' + !!hass.themes?.darkMode + '|' + JSON.stringify(hass.panels || {});
     if (firma !== this._firma) { this._firma = firma; this._render(); }
   }
 
@@ -79,6 +79,35 @@ class CompitappCard extends HTMLElement {
   }
   _eid(st, key) { return `sensor.compitapp_${this._slugDi(st)}_${key}`; }
   _ent(key) { const st = this._stud(); return st && this._hass ? this._hass.states[this._eid(st, key)] : undefined; }
+
+  connectedCallback() {
+    if (!this._diagnosticTimer) this._diagnosticTimer = setInterval(() => {
+      const status = this.shadowRoot.querySelector('.diagnostica');
+      if (status) status.outerHTML = this._diagnosticaHtml();
+    }, 60000);
+  }
+
+  _diagnosticaHtml() {
+    const e = this._ent('diagnostica');
+    const a = e?.attributes || {};
+    const now = Date.now();
+    const last = Date.parse(a.ultimo_successo), verified = Date.parse(a.verificato_il);
+    const minutes = Number(a.intervallo_minuti);
+    const maxAge = Math.max(600000, (Number.isFinite(minutes) && minutes > 0 ? minutes : 30) * 120000);
+    const missing = !e || ['unknown','unavailable'].includes(e.state) || !Number.isFinite(verified) || verified > now || now - verified > 600000;
+    const stale = !Number.isFinite(last) || last > now || now - last > maxAge;
+    const failed = a.esito === 'errore';
+    const labels = {accesso:'Accesso Argo non riuscito',permessi:'Accesso ai dati non consentito',limite:'Limite richieste Argo raggiunto',rete:'Argo non raggiungibile',servizio:'Servizio Argo non disponibile',risposta:'Risposta Argo non verificabile',sincronizzazione:'Sincronizzazione incompleta'};
+    const level = failed ? 'errore' : missing || stale || a.in_corso || a.esito !== 'ok' ? 'attesa' : 'ok';
+    let message = failed ? labels[a.motivo] || labels.sincronizzazione : missing ? 'Diagnostica non disponibile o non recente' : stale ? 'Dati non aggiornati di recente' : a.in_corso ? 'Sincronizzazione in corso' : a.esito === 'ok' ? 'Registro aggiornato' : 'In attesa del primo controllo';
+    if (failed && a.in_corso && !missing) message += ' — nuovo tentativo in corso';
+    if (failed && missing) message += ' — stato non verificato di recente';
+    const date = value => new Date(value).toLocaleString('it-IT', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+    const next = Date.parse(a.prossimo_tentativo);
+    const planned = !missing && Number.isFinite(next) && next > now;
+    const action = level === 'ok' ? 'Nessuna azione necessaria.' : planned && ['rete','servizio','limite'].includes(a.motivo) ? 'Attendi il prossimo controllo automatico.' : 'Apri UniScuola e verifica le Impostazioni.';
+    return `<section class="diagnostica ${level}" role="status" aria-live="polite" aria-atomic="true" aria-label="Diagnostica sincronizzazione"><strong>${_esc(message)}</strong><p>Ultima sincronizzazione riuscita: ${Number.isFinite(last) && last <= now ? _esc(date(last)) : 'non disponibile'}</p><p>${planned ? 'Prossimo controllo: ' + _esc(date(next)) : 'Nessun prossimo controllo confermato.'}</p><p>${action}</p></section>`;
+  }
 
   _palette() {
     const palette = this._stud()?.palette || this._config.palette || this._ent('compiti_oggi')?.attributes?.palette || 'salvia';
@@ -157,6 +186,7 @@ class CompitappCard extends HTMLElement {
         <div class="top"><div class="brand"><ha-icon icon="mdi:book-open-page-variant-outline"></ha-icon>UniScuola</div><span class="kicker">IL REGISTRO DI FAMIGLIA</span></div>
         ${chips}
         <div class="head">${foto}<div><div class="sub">LA SCUOLA, CON PIÙ CALMA</div><div class="nome">${_esc(st.name)}</div></div></div>
+        ${this._diagnosticaHtml()}
         <div class="grid">${tiles}</div>
         <div class="card-foot"><span class="updated">${_esc(aggiornato || 'In attesa dei sensori')}</span>${apri}</div>
         <p class="open-error" role="alert" hidden></p>
@@ -205,7 +235,7 @@ class CompitappCard extends HTMLElement {
     document.addEventListener('keydown', this._onKey);
   }
 
-  disconnectedCallback() { this._chiudiPopup(); }
+  disconnectedCallback() { this._chiudiPopup(); clearInterval(this._diagnosticTimer); this._diagnosticTimer = null; }
 
   _popupHtml() {
     const t = TILES.find((x) => x.key === this._popup);
@@ -246,6 +276,7 @@ class CompitappCard extends HTMLElement {
 }
 
 const STILE = `
+.diagnostica{margin:0 20px 18px;padding:15px;border:2px solid currentColor;border-radius:14px;overflow-wrap:anywhere;font-size:14px}.diagnostica p{margin:8px 0 0;line-height:1.4}.diagnostica.errore{color:#a12b38;background:#fff2f3}.diagnostica.attesa{color:#795200;background:#fff8e5}.diagnostica.ok{color:#246044;background:#edf7f0}:host([data-theme=dark]) .diagnostica.errore{color:#ffb8c1;background:#391e26}:host([data-theme=dark]) .diagnostica.attesa{color:#ffdb91;background:#342b18}:host([data-theme=dark]) .diagnostica.ok{color:#a7dfbc;background:#1c3228}
 :host{display:block;--ca-bg:#f7f7f2;--ca-card:#fff;--ca-soft:#edf3ec;--ca-text:#29382e;--ca-muted:#778276;--ca-line:#e5e9df;--ca-green:#436b4a;font-family:"Segoe UI",system-ui,sans-serif;color:var(--ca-text);color-scheme:light}
 :host([data-theme=dark]){--ca-bg:#19231e;--ca-card:#202d25;--ca-soft:#293e2e;--ca-text:#e5ede2;--ca-muted:#a2b19f;--ca-line:#354337;--ca-green:#add0a6;color-scheme:dark}
 :host([data-palette=rosa]){--ca-bg:#fcf5f7;--ca-card:#fffafb;--ca-soft:#f8e8ee;--ca-text:#422e39;--ca-muted:#856c79;--ca-line:#ecdee5;--ca-green:#9b4166}

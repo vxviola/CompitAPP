@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.4.7 - recupero della sincronizzazione e diagnostica
+
+- Dopo HTTP 401, rinnovo della sessione password corrente e una sola ripetizione della richiesta, conservando profilo e cursore. Errori di permessi, limiti del servizio, rete e server distinti, senza rinnovi di sessione indiscriminati. Nessun nuovo rinnovo immediato per SPID.
+- Diagnostica visibile nella home e nella card: ultima riuscita, categoria del problema, dati obsoleti e prossimo controllo solo quando realmente pianificato. Un nuovo tentativo non nasconde l'errore precedente.
+- Dati e cursori conservati in caso di errore; controlli periodici mantenuti e pubblicazione dello stato serializzata.
+- Promemoria serale esplicitamente nel fuso Europe/Rome, anche per l'orario di ripiego: il fuso UTC del container non sposta più l'orario italiano configurato.
+- Aggiunti test per recupero sessione, diagnostica e promemoria durante i passaggi tra ora solare e legale. Versioni e cache della dashboard/card aggiornate a 2.4.7.
+
 ## 2.4.6 — supporto alle entità di notifica Home Assistant
 
 - Rilevate anche le entità notify.*, quando Home Assistant espone notify.send_message. Non occorre rinominarle con il prefisso mobile_app.

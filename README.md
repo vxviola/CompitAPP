@@ -33,6 +33,13 @@ La bacheca permette di cercare nei messaggi e nei nomi dei file, filtrare per al
 
 Se usi già questo fork, aggiorna l’app dallo store di Home Assistant: **impostazioni e database restano conservati**. Non occorre reinstallare. Dopo l’aggiornamento ricarica la pagina per caricare il nuovo aspetto. [Guida alla dashboard](docs/dashboard.md).
 
+## Novità della versione 2.4.7
+
+- Recupero della sessione Argo con accesso password dopo un rifiuto autenticativo HTTP 401, con un solo tentativo immediato; gli errori temporanei conservano dati e cursori per i controlli periodici.
+- Diagnostica nella home e nella card: stato, ultima sincronizzazione riuscita, dati non aggiornati e prossimo controllo solo quando effettivamente pianificato.
+- Promemoria serale nel fuso Europe/Rome, anche quando il container usa UTC, con gestione dell'ora legale affidata al fuso italiano.
+- Dopo l'aggiornamento ricarica la dashboard e aggiorna la risorsa della card esistente a `?v=247`, senza aggiungerne una seconda.
+
 ## Novità della versione 2.4.0
 
 - **Compiti completati:** spunta le attività dalla home o dal calendario; puoi mostrare solo quelle da fare. Lo stato resta salvato per ciascun figlio.
@@ -177,7 +184,7 @@ La scheda Lovelace riprende lo stile di UniScuola: verde salvia, superfici chiar
 All’avvio l’app copia la nuova risorsa in `/config/www/uniscuola/`. Aggiungi **una sola** risorsa come **modulo JavaScript**:
 
 ```text
-/local/uniscuola/uniscuola-card.js?v=240
+/local/uniscuola/uniscuola-card.js?v=247
 ```
 
 Poi crea una card manuale:
@@ -195,13 +202,13 @@ I nomi devono corrispondere agli studenti configurati nell’app. Per scegliere 
 
 `addon_slug` è l’identificativo dell’app installata: lo trovi nell’indirizzo aperto da **Apri interfaccia web** o nella pagina dell’app. Per questo fork è normalmente `ee1c5e4d_compitapp`: mantienilo anche dopo il cambio di nome. Se hai abilitato **Mostra nella barra laterale** e c’è una sola CompitAPP/UniScuola, il collegamento viene rilevato anche senza questo campo. Con originale e fork presenti, specifica il fork per evitare ambiguità. Puoi usare anche `open_url` con il percorso locale del pannello, ad esempio `/ee1c5e4d_compitapp`.
 
-**Se usi già la card precedente:** continua a funzionare con `type: custom:compitapp-card` e `/local/compitapp/compitapp-card.js`. Dopo l’aggiornamento cambia l’URL della risorsa esistente in `/local/compitapp/compitapp-card.js?v=240` e ricarica la dashboard; evita di aggiungere una seconda risorsa. Non serve ricreare le card. Il vecchio esempio `open_url: /hassio/ingress/compitapp` viene sostituito dal rilevamento del pannello; se mantieni anche l’app originale, imposta `addon_slug` come sopra.
+**Se usi già la card precedente:** continua a funzionare con `type: custom:compitapp-card` e `/local/compitapp/compitapp-card.js`. Dopo l’aggiornamento cambia l’URL della risorsa esistente in `/local/compitapp/compitapp-card.js?v=247` e ricarica la dashboard; evita di aggiungere una seconda risorsa. Non serve ricreare le card. Il vecchio esempio `open_url: /hassio/ingress/compitapp` viene sostituito dal rilevamento del pannello; se mantieni anche l’app originale, imposta `addon_slug` come sopra.
 
 ### Aggiornare a UniScuola e salvare i documenti su iPhone
 
 UniScuola 2.4.0 aggiorna la stessa app del fork: gli identificativi interni, il database, le impostazioni e le entità `sensor.compitapp_*` restano invariati. Anche l’indirizzo del repository resta `https://github.com/vxviola/CompitAPP`. Non disinstallare il fork e non rimuovere l’originale conservato per sicurezza.
 
-In Home Assistant vai allo **store delle app/add-on → menu ⋮ → Controlla aggiornamenti**, poi apri il fork e installa la versione 2.4.0. Se non compare, ricarica lo store. Dopo l’avvio il nome visualizzato sarà **UniScuola**. Ricarica anche l’app Companion per aggiornare i file dell’interfaccia.
+In Home Assistant vai allo **store delle app/add-on → menu ⋮ → Controlla aggiornamenti**, poi apri il fork e installa la versione 2.4.7. Se non compare, ricarica lo store. Dopo l’avvio il nome visualizzato sarà **UniScuola**. Ricarica anche l’app Companion per aggiornare i file dell’interfaccia.
 
 In bacheca tocca **Scarica**, attendi che il file sia pronto e poi **Salva o condividi**. Su iPhone scegli **Salva su File** nel menu di condivisione. Il secondo tocco serve a consentire l’apertura del menu anche quando Argo impiega tempo a preparare il documento. Per i PDF è disponibile anche **Anteprima PDF**. Se la condivisione non è supportata dal browser, compare il download normale con un suggerimento per usare Safari.
 

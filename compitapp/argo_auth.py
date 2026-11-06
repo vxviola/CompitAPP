@@ -38,6 +38,10 @@ from argofamiglia.CONSTANTS import ENDPOINT, USER_AGENT
 class ArgoLoginError(ValueError):
     """Messaggio composto esclusivamente da metadati controllati."""
 
+    def __init__(self, message, categoria='accesso'):
+        super().__init__(message)
+        self.categoria = categoria
+
 
 class _AppRedirectParser(HTMLParser):
     """Legge il link usato da initializeAppRedirect nel JavaScript pubblico Argo."""
@@ -84,10 +88,13 @@ def _html_app_redirect(response, hop):
 def _fail(stage, reason, response=None, hop=0):
     status = response.status_code if response is not None else 'nessuna'
     location = 'si' if response is not None and response.headers.get('Location') else 'no'
+    categoria = ('rete' if reason in ('timeout', 'errore_rete') else
+                 'limite' if status == 429 else 'permessi' if status == 403 else
+                 'servizio' if isinstance(status, int) and status >= 500 else 'accesso')
     raise ArgoLoginError(
         f'ARGO-AUTH fase={stage} passo={hop} HTTP={status} '
         f'location={location} motivo={reason}. '
-        'Accesso non completato; questo messaggio non prova che la password sia errata.'
+        'Accesso non completato; questo messaggio non prova che la password sia errata.', categoria
     ) from None
 
 

@@ -12,6 +12,21 @@ _slug = None
 _ultimo_avviso_sync = None
 
 
+def pubblica_diagnostica(nome, stato):
+    """Technical status only; no name or school data in attributes or log."""
+    if not os.environ.get('SUPERVISOR_TOKEN'):
+        return
+    slug = nome.lower().replace(' ', '_')
+    payload = {'state': stato['livello'], 'attributes': dict(stato,
+               friendly_name='UniScuola - Diagnostica sincronizzazione', icon='mdi:cloud-sync-outline')}
+    try:
+        r = requests.post('http://supervisor/core/api/states/sensor.compitapp_' + slug + '_diagnostica',
+                          headers=_headers(), json=payload, timeout=(3, 8))
+        r.raise_for_status()
+    except requests.RequestException:
+        print('[SYNC] Diagnostica HA non consegnata; riprovo al prossimo controllo')
+
+
 def avviso_sincronizzazione(stati):
     """Un solo avviso tecnico HA, indipendente dalle notifiche scolastiche."""
     global _ultimo_avviso_sync

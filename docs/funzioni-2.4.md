@@ -4,7 +4,7 @@ Aggiorna il fork già installato dallo store di Home Assistant, senza disinstall
 
 ## Compiti completati e zaino
 
-Spunta i compiti nella home o nel calendario. Il filtro **Solo da fare** nasconde quelli completati. Le spunte restano nel database e sono separate per figlio; non vengono inviate alla scuola. La card mostra il completamento nei dettagli dopo il successivo aggiornamento dei sensori. Se usi la card, aggiorna la risorsa esistente a `/local/uniscuola/uniscuola-card.js?v=240` oppure al vecchio percorso `/local/compitapp/compitapp-card.js?v=240`, senza aggiungere una seconda risorsa.
+Spunta i compiti nella home o nel calendario. Il filtro **Solo da fare** nasconde quelli completati. Le spunte restano nel database e sono separate per figlio; non vengono inviate alla scuola. La card mostra il completamento nei dettagli dopo il successivo aggiornamento dei sensori. Se usi la card, aggiorna la risorsa esistente a `/local/uniscuola/uniscuola-card.js?v=247` oppure al vecchio percorso `/local/compitapp/compitapp-card.js?v=247`, senza aggiungere una seconda risorsa.
 
 In **Prepara lo zaino** scegli il giorno e aggiungi i materiali. **Ogni giorno** li mostra sempre; una materia li mostra quando compare nell’orario ricostruito per quel giorno. Senza un orario disponibile vengono mostrati solo i materiali generici. Le spunte valgono per la data scelta e il figlio selezionato; i materiali restano disponibili nei giorni successivi. L’orario ricostruito può differire da quello ufficiale della scuola.
 
