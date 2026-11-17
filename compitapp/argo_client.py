@@ -1,12 +1,10 @@
 import os
 import json
 import time
-import secrets
 import threading
 import requests
-from argofamiglia import ArgoFamiglia
-from argo_auth import ArgoPassword, ArgoLoginError
-from argofamiglia.CONSTANTS import ENDPOINT
+from argo_auth import ArgoPassword, ArgoLoginError, ArgoWebSession, get_profiles
+from argo_backend import ENDPOINT, api_headers, dashboard_body
 
 def get_studenti():
     raw = os.environ.get('STUDENTI', '[]')
@@ -44,17 +42,7 @@ def _scegli_profilo(session, studente):
         indice = int(studente.get('alunno') or 0)
     except (TypeError, ValueError):
         indice = 0
-    try:
-        login_data = session._ArgoFamiglia__login_data
-        r = requests.post(ENDPOINT + "login", timeout=30, headers={
-            "Content-Type": "Application/json", "Accept": "Application/json",
-            "Authorization": "Bearer " + login_data["access_token"]},
-            json={"clientID": secrets.token_urlsafe(64), "lista-x-auth-token": "[]",
-                  "x-auth-token-corrente": "null", "lista-opzioni-notifiche": "{}"})
-        profili = r.json().get('data') or []
-    except Exception as e:
-        print(f"[ARGO] {nome}: elenco profili non disponibile ({e})")
-        return
+    profili = session._argo_profiles
     if len(profili) > 1:
         print(f"[ARGO] {nome}: l'account Argo contiene {len(profili)} profili"
               + ("" if indice else " — compila il campo 'alunno' (1, 2...) per ogni figlio, altrimenti usa sempre il primo"))
@@ -70,6 +58,8 @@ def _scegli_profilo(session, studente):
     if token:
         session._ArgoFamiglia__token = token
         session._ArgoFamiglia__headers["x-auth-token"] = token
+        if profili[indice - 1].get('codMin'):
+            session._ArgoFamiglia__headers['x-cod-min'] = profili[indice - 1]['codMin']
         print(f"[ARGO] {nome}: uso il profilo {indice} di {len(profili)}")
 
 def _controlla_cambio_profilo(nome, indice):
@@ -100,7 +90,7 @@ def _controlla_cambio_profilo(nome, indice):
         print(f"[ARGO] {nome}: controllo cambio profilo non riuscito ({e})")
 
 
-class ArgoSpid(ArgoFamiglia):
+class ArgoSpid(ArgoWebSession):
     """Sessione Argo per chi accede con SPID/CIE: niente utente e password, il token di accesso
     si ottiene rinnovando quello salvato da spid_auth."""
 
@@ -113,19 +103,10 @@ class ArgoSpid(ArgoFamiglia):
         dati = spid_auth.rinnova(self._nome_spid)
         school = self._ArgoFamiglia__school
         self._ArgoFamiglia__login_data = dati
-        r = requests.post(ENDPOINT + "login", timeout=30, headers={
-            "Content-Type": "Application/json", "Accept": "Application/json",
-            "Authorization": "Bearer " + dati["access_token"]},
-            json={"clientID": secrets.token_urlsafe(64), "lista-x-auth-token": "[]",
-                  "x-auth-token-corrente": "null", "lista-opzioni-notifiche": "{}"})
-        token = r.json()["data"][0]["token"]
+        self._argo_profiles = get_profiles(dati)
+        token = self._argo_profiles[0]['token']
         self._ArgoFamiglia__token = token
-        self._ArgoFamiglia__headers = {
-            "Content-Type": "Application/json",
-            "Authorization": "Bearer " + dati["access_token"],
-            "Accept": "Application/json",
-            "x-cod-min": school,
-            "x-auth-token": token}
+        self._ArgoFamiglia__headers = api_headers(dati['access_token'], school, token)
         return self
 
 
@@ -431,15 +412,15 @@ def link_allegato_bacheca(studente, allegato):
             raise RuntimeError('Sessione Argo non disponibile')
         headers = session._ArgoFamiglia__headers
         payload = {'uid': allegato['uid']}
-        endpoint = 'downloadallegatobacheca'
+        endpoint = 'famiglia/downloadallegatobacheca'
         try:
+            profilo = requests.get(ENDPOINT + 'profilo', headers=headers, timeout=30, allow_redirects=False)
+            profilo.raise_for_status()
+            payload['pkScheda'] = profilo.json()['data']['scheda']['pk']
             if allegato.get('tipo') == 'alunno':
-                profilo = requests.get(ENDPOINT + 'profilo', headers=headers, timeout=30)
-                profilo.raise_for_status()
-                payload['pkScheda'] = profilo.json()['data']['scheda']['pk']
-                endpoint = 'downloadallegatobachecaalunno'
+                endpoint = 'famiglia/downloadallegatobachecaalunno'
             risposta = requests.post(ENDPOINT + endpoint, headers=headers,
-                                     json=payload, timeout=30)
+                                     json=payload, timeout=30, allow_redirects=False)
             risposta.raise_for_status()
             dati = risposta.json()
             if dati.get('success') is False or not dati.get('url'):
@@ -484,7 +465,6 @@ def _dashboard_dal(studente, giorni):
     soltanto le lezioni di oggi: con una data più vecchia Argo restituisce anche i giorni precedenti."""
     import datetime
     import requests
-    from argofamiglia.CONSTANTS import ENDPOINT, DASHBOARD_OPTIONS
     session = get_session(studente)
     if not session:
         return None
@@ -492,9 +472,9 @@ def _dashboard_dal(studente, giorni):
     risposta = requests.post(
         ENDPOINT + "dashboard/dashboard",
         headers=session._ArgoFamiglia__headers,
-        json={"dataultimoaggiornamento": dal.strftime("%Y-%m-%d 00:00:00"),
-              "opzioni": json.dumps(DASHBOARD_OPTIONS)},
-        timeout=60)
+        json=dashboard_body(dal.strftime("%Y-%m-%d 00:00:00")),
+        timeout=60, allow_redirects=False)
+    risposta.raise_for_status()
     return risposta.json()
 
 
@@ -508,7 +488,6 @@ class ArgoSyncError(Exception):
 
 def dashboard_sync(studente, dal):
     """Delta richiesto da una data precisa. Nessun ripiego sulla sola giornata corrente."""
-    from argofamiglia.CONSTANTS import DASHBOARD_OPTIONS
     nome = studente.get('nome', 'default')
     for tentativo in range(2):
         session = get_session(studente)
@@ -517,8 +496,8 @@ def dashboard_sync(studente, dal):
         try:
             risposta = requests.post(ENDPOINT + 'dashboard/dashboard',
                                      headers=session._ArgoFamiglia__headers,
-                                     json={'dataultimoaggiornamento': dal.strftime('%Y-%m-%d %H:%M:%S'),
-                                           'opzioni': json.dumps(DASHBOARD_OPTIONS)}, timeout=(10, 60))
+                                     json=dashboard_body(dal.strftime('%Y-%m-%d %H:%M:%S')),
+                                     timeout=(10, 60), allow_redirects=False)
         except requests.RequestException:
             raise ArgoSyncError('Argo non raggiungibile', 'rete') from None
         status = risposta.status_code

@@ -53,7 +53,8 @@ class Recovery(unittest.TestCase):
         self.scheduler = module('scheduler', dict(TZ=timezone.utc,datetime=datetime,POLLING_MINUTI=30,_scheduler=None,STATE_RUNNING=1,
             sync_state=self.state), only={'pianificazione_sync','_esegui_sync','sync_tutto'})
         self.argo = module('argo_client', dict(os=__import__('os'),json=json,time=time,threading=threading,secrets=__import__('secrets'),
-            requests=self.requests,ArgoFamiglia=FakeSession,ArgoPassword=FakeSession,
+            requests=self.requests,ArgoWebSession=FakeSession,ArgoPassword=FakeSession,
+            dashboard_body=lambda since: {'dataultimoaggiornamento': since, 'opzioni': None},
             ArgoLoginError=type('ArgoLoginError',(Exception,),{}),ENDPOINT='offline://'))
         self.argo._scegli_profilo = Mock()
         self.ha = types.SimpleNamespace(avviso_sincronizzazione=Mock(),pubblica_diagnostica=Mock())

@@ -32,7 +32,8 @@ from urllib.parse import parse_qs, urljoin, urlsplit
 import requests
 from argofamiglia import ArgoFamiglia
 from argofamiglia.auth import CHALLENGE_URL, LOGIN_URL, TOKEN_URL, REDIRECT_URI, CLIENT_ID
-from argofamiglia.CONSTANTS import ENDPOINT, USER_AGENT
+from argo_backend import ENDPOINT, api_headers, dashboard_body
+from datetime import datetime
 
 
 class ArgoLoginError(ValueError):
@@ -121,7 +122,23 @@ def _json(response, stage):
     return data
 
 
-def login(school, username, password):
+def _profiles(session, tokens):
+    response = _request(session, 'POST', ENDPOINT + 'login', 'profili',
+                        allow_redirects=False, headers=api_headers(tokens['access_token']), json={})
+    profiles = _json(response, 'profili').get('data')
+    if (not isinstance(profiles, list) or not profiles
+            or any(not isinstance(p, dict) or not isinstance(p.get('token'), str)
+                   or not p['token'] for p in profiles)):
+        _fail('profili', 'profilo_token_assente', response)
+    return profiles
+
+
+def get_profiles(tokens):
+    with requests.Session() as session:
+        return _profiles(session, tokens)
+
+
+def login(school, username, password, profiles_out=None):
     verifier = secrets.token_hex(64)
     challenge = base64.urlsafe_b64encode(sha256(verifier.encode()).digest()).decode().rstrip('=')
     state = secrets.token_urlsafe(32)
@@ -171,25 +188,28 @@ def login(school, username, password):
         tokens = _json(response, 'token')
         if not isinstance(tokens.get('access_token'), str) or not tokens['access_token']:
             _fail('token', 'access_token_assente', response)
-        response = _request(session, 'POST', ENDPOINT + 'login', 'profili', allow_redirects=False,
-            headers={'User-Agent': USER_AGENT, 'Content-Type': 'Application/json',
-                     'Authorization': 'Bearer ' + tokens['access_token'], 'Accept': 'Application/json'},
-            json={'clientID': secrets.token_urlsafe(64), 'lista-x-auth-token': '[]',
-                  'x-auth-token-corrente': 'null', 'lista-opzioni-notifiche': '{}'})
-        profiles = _json(response, 'profili').get('data')
-        if (not isinstance(profiles, list) or not profiles or not isinstance(profiles[0], dict)
-                or not isinstance(profiles[0].get('token'), str) or not profiles[0]['token']):
-            _fail('profili', 'profilo_token_assente', response)
+        profiles = _profiles(session, tokens)
+        if profiles_out is not None:
+            profiles_out.extend(profiles)
         return profiles[0]['token'], tokens
 
 
-class ArgoPassword(ArgoFamiglia):
+class ArgoWebSession(ArgoFamiglia):
+    def dashboard(self, useExactDatetime=True):
+        now = datetime.now()
+        since = now.strftime('%Y-%m-%d %H:%M:%S' if useExactDatetime else '%Y-%m-%d 00:00:00')
+        response = requests.post(ENDPOINT + 'dashboard/dashboard',
+                                 headers=self._ArgoFamiglia__headers,
+                                 json=dashboard_body(since), timeout=(10, 60), allow_redirects=False)
+        response.raise_for_status()
+        return response.json()
+
+
+class ArgoPassword(ArgoWebSession):
     def connect(self):
-        token, data = login(self.school, self.username, self._ArgoFamiglia__password)
+        self._argo_profiles = []
+        token, data = login(self.school, self.username, self._ArgoFamiglia__password, self._argo_profiles)
         self._ArgoFamiglia__token = token
         self._ArgoFamiglia__login_data = data
-        self._ArgoFamiglia__headers = {
-            'Content-Type': 'Application/json', 'Accept': 'Application/json',
-            'Authorization': 'Bearer ' + data['access_token'],
-            'x-cod-min': self.school, 'x-auth-token': token}
+        self._ArgoFamiglia__headers = api_headers(data['access_token'], self.school, token)
         return self

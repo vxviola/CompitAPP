@@ -112,12 +112,16 @@ class ArgoTest(unittest.TestCase):
     def test_richiesta_link_con_sessione_dello_studente(self):
         session = Mock(_ArgoFamiglia__headers={'x-auth-token': 'privato'})
         with patch.object(argo_client, 'get_session', return_value=session) as get_session, \
+                patch.object(argo_client.requests, 'get') as get, \
                 patch.object(argo_client.requests, 'post') as post:
+            get.return_value.json.return_value = {'data': {'scheda': {'pk': 'scheda-secondo-figlio'}}}
             post.return_value.json.return_value = {'success': True, 'url': 'https://www.portaleargo.it/file'}
             self.assertEqual(argo_client.link_allegato_bacheca(STUDENTI[1], ALLEGATO), 'https://www.portaleargo.it/file')
             get_session.assert_called_once_with(STUDENTI[1])
             self.assertTrue(post.call_args.args[0].endswith('/downloadallegatobacheca'))
-            self.assertEqual(post.call_args.kwargs['json'], {'uid': 'file-1'})
+            self.assertEqual(post.call_args.kwargs['json'], {'uid': 'file-1', 'pkScheda': 'scheda-secondo-figlio'})
+            self.assertIn('/famiglia/api/famiglia/downloadallegatobacheca', post.call_args.args[0])
+            self.assertEqual(get.call_args.kwargs['headers']['x-auth-token'], 'privato')
 
     def test_bacheca_personale_usa_pk_scheda_del_profilo(self):
         with patch.object(argo_client, 'get_session', return_value=Mock()), \
@@ -132,7 +136,9 @@ class ArgoTest(unittest.TestCase):
     def test_rinnova_sessione_se_link_rifiutato(self):
         with patch.object(argo_client, 'get_session', return_value=Mock()), \
                 patch.object(argo_client, '_reset_session') as reset, \
+                patch.object(argo_client.requests, 'get') as get, \
                 patch.object(argo_client.requests, 'post') as post:
+            get.return_value.json.return_value = {'data': {'scheda': {'pk': 'scheda'}}}
             post.return_value.json.side_effect = [{'success': False}, {'url': 'https://www.portaleargo.it/file'}]
             argo_client.link_allegato_bacheca(STUDENTI[0], ALLEGATO)
             reset.assert_called_once_with('Anna & Leo')

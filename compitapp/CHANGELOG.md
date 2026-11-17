@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.4.9 - ripristino accesso e dati tramite Famiglia WEB
+
+- Accesso e sincronizzazione passano al backend ufficiale Famiglia WEB, dopo risposte HTTP 503 dal precedente endpoint appfamiglia.
+- Richieste profili e dashboard conformi al client WEB: intestazioni dedicate, opzioni dashboard null e mantenimento del cursore esatto di sincronizzazione.
+- Selezione del profilo dalla lista ottenuta durante il login, senza una seconda richiesta; mantenuta la scelta alunno configurata. Rinnovo SPID invariato, richieste dati sul nuovo backend.
+- Aggiornati i percorsi degli allegati di classe e personali, con la scheda dello studente selezionato. Nessuna presa visione inviata automaticamente.
+- Prove reali locali: accesso e lettura dashboard riusciti per tre profili, con struttura compatibile di registro, voti, promemoria, bacheca e assenze. Test automatici per trasporto, profili, SPID e allegati. Download reale allegati, SPID reale e sincronizzazione completa su Home Assistant restano da verificare dopo l'aggiornamento.
+- Conservati impostazioni, database e cursori. Non occorre reinstallare o azzerare i dati.
+
 ## 2.4.8 - log diagnostici immediati
 
 - Avvio Python senza buffering: i messaggi Argo e sincronizzazione vengono emessi subito anche nel container, senza attendere il riempimento del buffer.

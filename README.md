@@ -33,6 +33,13 @@ La bacheca permette di cercare nei messaggi e nei nomi dei file, filtrare per al
 
 Se usi già questo fork, aggiorna l’app dallo store di Home Assistant: **impostazioni e database restano conservati**. Non occorre reinstallare. Dopo l’aggiornamento ricarica la pagina per caricare il nuovo aspetto. [Guida alla dashboard](docs/dashboard.md).
 
+## Novità della versione 2.4.9
+
+- Ripristinati accesso e recupero dati tramite il backend ufficiale Famiglia WEB, dopo gli errori HTTP 503 del precedente servizio.
+- Aggiornati anche selezione profili e percorsi degli allegati. Impostazioni, dati e cursori di sincronizzazione restano conservati.
+- Aggiorna l’app senza reinstallarla o azzerare il database; verifica che l’ultima sincronizzazione riuscita avanzi. La card resta alla versione risorsa `?v=247`: non serve modificarla.
+- Accesso e dashboard verificati con prova locale reale su tre profili; collaudo completo su Home Assistant, SPID e download reali ancora da completare.
+
 ## Novità della versione 2.4.7
 
 - Recupero della sessione Argo con accesso password dopo un rifiuto autenticativo HTTP 401, con un solo tentativo immediato; gli errori temporanei conservano dati e cursori per i controlli periodici.
