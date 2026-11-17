@@ -11,4 +11,4 @@ COPY . .
 
 EXPOSE 5002
 
-CMD ["python", "wsgi.py"]
+CMD ["python", "-u", "wsgi.py"]

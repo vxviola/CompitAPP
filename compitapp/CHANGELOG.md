@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4.8 - log diagnostici immediati
+
+- Avvio Python senza buffering: i messaggi Argo e sincronizzazione vengono emessi subito anche nel container, senza attendere il riempimento del buffer.
+- Correzione della visibilita diagnostica; non costituisce una correzione o una verifica del disservizio Argo. Nessuna modifica a credenziali, dati o flusso di accesso.
+- Verificato con processo Python e output su pipe: stampa disponibile prima della fine del processo con `-u`. Verifica su Home Assistant da completare.
+
+
 ## 2.4.7 - recupero della sincronizzazione e diagnostica
 
 - Dopo HTTP 401, rinnovo della sessione password corrente e una sola ripetizione della richiesta, conservando profilo e cursore. Errori di permessi, limiti del servizio, rete e server distinti, senza rinnovi di sessione indiscriminati. Nessun nuovo rinnovo immediato per SPID.
