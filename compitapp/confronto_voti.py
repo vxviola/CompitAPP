@@ -41,9 +41,9 @@ def _risultato(esito, messaggio, trovati=None, righe=None):
 
 
 def _indice_anno(studente, inizio):
+    # La richiesta parte già dall'inizio dell'anno: anche con un avviso di
+    # ricarica, le righe identificabili sono un riscontro per il confronto.
     sezione = argo_client.dashboard_sync(studente, inizio, solo_sessione_attiva=True)
-    if sezione.get('ricaricaDati') or sezione.get('rimuoviDatiLocali'):
-        raise argo_client.ArgoSyncError('Rilettura richiesta', 'aggiornamento')
     chiave = 'voti' if 'voti' in sezione else 'votiGiornalieri'
     if not isinstance(sezione.get(chiave), list):
         raise argo_client.ArgoSyncError('Elenco voti assente o incompleto')
@@ -160,7 +160,6 @@ def confronta_gruppi_voti(studente, gruppi):
                 'rete': 'Argo non è raggiungibile. Riprova tra poco.',
                 'servizio': 'Il servizio Argo è temporaneamente indisponibile. Riprova più tardi.',
                 'limite': 'Argo ha raggiunto il limite di richieste. Riprova più tardi.',
-                'aggiornamento': 'Argo richiede un aggiornamento. Premi Aggiorna e ripeti il confronto.',
             }
             messaggio = messaggi.get(exc.categoria, 'La risposta di Argo è incompleta o non verificabile. Riprova più tardi.')
             for gruppo, _ in gruppi_anno:

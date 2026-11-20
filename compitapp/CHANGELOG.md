@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.4.13 – Riscontro dei voti dopo una rilettura annuale
+
+- **Confronta tutti con Argo** riconosce le valutazioni presenti in una risposta annuale valida anche quando Argo segnala che il registro va ricaricato. Il confronto usa le corrispondenze effettivamente ricevute. I gruppi privi di un riscontro sufficiente restano verificabili dal portale.
+
 ## 2.4.12 – Verifica e ripristino delle copie locali dei voti
 
 - In **Voti → Verifica voti duplicati**, disponibile anche dalle Impostazioni, ogni gruppo mostra data completa, materia, voto, descrizione e le registrazioni locali dello studente selezionato. **Confronta tutti con Argo** controlla i gruppi dell’anno con una sola lettura del registro. È disponibile anche il confronto per singolo gruppo.

@@ -43,6 +43,27 @@ class ConfrontoTest(DatabaseFixture, unittest.TestCase):
         self.assertTrue(all('coincidono' in s for s in r['righe'].values()))
         self.assertNotIn('ufficiale', json.dumps(r))
 
+    def test_risposta_annuale_con_segnale_di_ricarica_verifica_solo_i_voti_presenti(self):
+        gruppo = self.gruppo()
+        with closing(models.get_db()) as conn:
+            prima = list(conn.iterdump())
+        for flag in ('ricaricaDati', 'rimuoviDatiLocali'):
+            for dati, esito in (({'voti': [self.voto('ufficiale-A')]}, 'riscontro'),
+                                ({'voti': []}, 'nessun_riscontro'),
+                                ({'voti': None}, 'indisponibile'), ({}, 'indisponibile')):
+                with self.subTest(flag=flag, esito=esito), patch('argo_client.dashboard_sync',
+                        return_value={flag: True, **dati}) as fetch:
+                    r = confronto_voti.confronta_voti(self.st, gruppo)
+                    self.assertEqual(r['esito'], esito)
+                    fetch.assert_called_once_with(self.st, datetime(2026,8,25), solo_sessione_attiva=True)
+                    self.assertNotIn('ritiro', str(r['righe']))
+                    if esito == 'riscontro':
+                        self.assertEqual(r['trovati'], 1)
+                        self.assertIn('coincidono', r['righe'][gruppo['righe'][0]['id']])
+                        self.assertIn('verificare', r['righe'][gruppo['righe'][1]['id']])
+        with closing(models.get_db()) as conn:
+            self.assertEqual(list(conn.iterdump()), prima)
+
     def test_assenza_di_riscontro_e_anonimi_non_provano_un_duplicato(self):
         gruppo = self.gruppo('ufficiale-A', None)
         r = self.confronta(gruppo, [])
