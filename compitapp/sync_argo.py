@@ -22,7 +22,7 @@ SPEC = {
     'voti': ('voti', ('data', 'materia', 'voto', 'descrizione'), ('data', 'materia')),
     'assenze': ('assenze', ('data', 'tipo', 'descrizione', 'giustificata'), ('data', 'tipo')),
     'note': ('note_disciplinari', ('data', 'docente', 'testo'), ('data', 'docente')),
-    'bacheca': ('bacheca', ('data', 'titolo', 'testo', 'mittente', 'allegati'), ('data', 'titolo')),
+    'bacheca': ('bacheca', ('data', 'titolo', 'testo', 'mittente', 'allegati', 'url'), ('data', 'titolo')),
     'argomenti': ('argomenti', ('data', 'materia', 'argomento', 'attivita'), ('data', 'materia')),
     'promemoria': ('promemoria', ('data', 'testo', 'docente'), ('data', 'docente')),
 }
@@ -52,7 +52,8 @@ def piano(conn, categoria, nome, ora):
         ultimo = None
     # Il primo passaggio della nuova versione rilegge lo storico senza notifiche.
     return {'dal': min(ultimo, ora) - timedelta(days=7) if ultimo else inizio_anno(ora),
-            'silenzioso': ultimo is None, 'ora': ora}
+            'silenzioso': ultimo is None, 'ora': ora,
+            'recupera_link': categoria == 'bacheca' and ultimo is not None and stato.get('link_bacheca') != 1}
 
 
 def _lista(sezione, *chiavi):
@@ -165,7 +166,7 @@ def normalizza(categoria, sezione):
                 raise argo_client.ArgoSyncError('Elenco allegati non valido')
             tipo = 'alunno' if r in (sezione.get('bachecaAlunno') or []) else 'bacheca'
             msg = argo_client._msg_bacheca(r, tipo)
-            e['valori'] = {k: msg[k] for k in ('data', 'titolo', 'testo', 'mittente')}
+            e['valori'] = {k: msg[k] for k in ('data', 'titolo', 'testo', 'mittente', 'url')}
             e['valori']['data'] = _data(msg['data'])
             e['valori']['allegati'] = json.dumps(msg['allegati'], ensure_ascii=False)
         elif categoria == 'promemoria':
@@ -217,6 +218,24 @@ def _segna(conn, nome, categoria, e):
                      (nome, categoria, e['uid'], e['versione'], int(e['eliminato'])))
 
 
+def _chiave_replay_bacheca(evento):
+    if evento['uid']:
+        return evento['uid']
+    valori = evento['valori']
+    return tuple(valori[k] for k in ('data', 'titolo', 'testo', 'mittente', 'allegati'))
+
+
+def _applica_record_batch(conn, categoria, nome, eventi):
+    naturali = SPEC[categoria][2]
+    conteggi = Counter(tuple(e['valori'].get(k) for k in naturali) for e in eventi if not e['eliminato'])
+    nuovi = []
+    for e in eventi:
+        chiave = tuple(e['valori'].get(k) for k in naturali)
+        if applica_record(conn, categoria, nome, e, conteggi[chiave] <= 1):
+            nuovi.append(dict(e['valori'], _id=e.get('id_locale')))
+    return nuovi
+
+
 def _candidati(conn, tabella, nome, valori, campi):
     where = ' AND '.join(f'COALESCE({k},\'\')=?' for k in campi)
     senza_uid = " AND (uid IS NULL OR uid='')" if tabella == 'bacheca' else ''
@@ -242,6 +261,10 @@ def applica_record(conn, categoria, nome, e, univoco=True):
     adottato = False
     if row is None:
         matches = _candidati(conn, tabella, nome, valori, campi)
+        if categoria == 'bacheca' and not e['uid'] and not matches and univoco:
+            # Vecchi messaggi senza UID hanno perso il link in importazione.
+            # Associa solo una riga identica negli altri campi, senza fondere messaggi ambigui.
+            matches = _candidati(conn, tabella, nome, valori, [k for k in campi if k != 'url'])
         if len(matches) == 1:
             row, adottato = matches[0], True
         elif not matches and e['uid'] and univoco:
@@ -405,7 +428,8 @@ def sincronizza(studenti, categorie=CATEGORIE):
                 sezione = argo_client.dashboard_sync(studente, dal)
             if sezione.get('ricaricaDati') or sezione.get('rimuoviDatiLocali'):
                 if dal > inizio_anno(ora):
-                    sezione = argo_client.dashboard_sync(studente, inizio_anno(ora))
+                    dal = inizio_anno(ora)
+                    sezione = argo_client.dashboard_sync(studente, dal)
                 for p in piani.values():
                     p['silenzioso'] = True
         except Exception as exc:
@@ -417,7 +441,18 @@ def sincronizza(studenti, categorie=CATEGORIE):
         for categoria in categorie:
             conn = None
             try:
+                piano_categoria = piani[categoria]
                 eventi = normalizza(categoria, sezione)
+                eventi_storici = []
+                if piano_categoria['recupera_link'] and not piano_categoria['silenzioso']:
+                    # L'intervallo incrementale conserva le notifiche del ciclo normale.
+                    # Lo storico della sola bacheca reintegra i link dei vecchi avvisi in silenzio.
+                    if dal != piano_categoria['dal']:
+                        delta = argo_client.dashboard_sync(studente, piano_categoria['dal'])
+                        eventi = normalizza(categoria, delta)
+                    storico = sezione if dal <= inizio_anno(ora) else argo_client.dashboard_sync(studente, inizio_anno(ora))
+                    nel_delta = {_chiave_replay_bacheca(e) for e in eventi}
+                    eventi_storici = [e for e in normalizza(categoria, storico) if _chiave_replay_bacheca(e) not in nel_delta]
                 conn = get_db()
                 nuovi = []
                 if categoria == 'compiti':
@@ -425,13 +460,12 @@ def sincronizza(studenti, categorie=CATEGORIE):
                 elif categoria == 'registro':
                     _registro(conn, nome, eventi)
                 else:
-                    naturali = SPEC[categoria][2]
-                    conteggi = Counter(tuple(e['valori'].get(k) for k in naturali) for e in eventi if not e['eliminato'])
-                    for e in eventi:
-                        chiave = tuple(e['valori'].get(k) for k in naturali)
-                        if applica_record(conn, categoria, nome, e, conteggi[chiave] <= 1):
-                            nuovi.append(dict(e['valori'], _id=e.get('id_locale')))
+                    if eventi_storici:
+                        _applica_record_batch(conn, categoria, nome, eventi_storici)
+                    nuovi = _applica_record_batch(conn, categoria, nome, eventi)
                 stato = {'ultimo': ora.isoformat(), 'inizio': inizio_anno(ora).isoformat(), 'completo': True}
+                if categoria == 'bacheca':
+                    stato['link_bacheca'] = 1
                 conn.execute('INSERT OR REPLACE INTO meta(chiave,valore) VALUES (?,?)',
                              (_chiave(categoria, nome), json.dumps(stato)))
                 # Compatibilità con versioni precedenti e diagnostica esistente.
@@ -447,12 +481,13 @@ def sincronizza(studenti, categorie=CATEGORIE):
                         conn.execute('DELETE FROM meta WHERE chiave=?', (f'media_argo:{nome}',))
                 conn.commit()
                 conn.close(); conn = None
-                _notifica(categoria, nome, nuovi, piani[categoria]['silenzioso'])
-            except Exception:
+                _notifica(categoria, nome, nuovi, piano_categoria['silenzioso'])
+            except Exception as exc:
                 if conn:
                     conn.rollback()
                 riuscito = False
-                sync_state.errore(nome)
+                motivo = exc.categoria if isinstance(exc, argo_client.ArgoSyncError) else 'sincronizzazione'
+                sync_state.errore(nome, motivo)
                 print(f'[SYNC] {nome}: {categoria} non completata; prossimo controllo riprenderà dallo stesso punto')
             finally:
                 if conn:

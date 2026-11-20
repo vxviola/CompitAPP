@@ -5,6 +5,7 @@ import threading
 import requests
 from argo_auth import ArgoPassword, ArgoLoginError, ArgoWebSession, get_profiles
 from argo_backend import ENDPOINT, api_headers, dashboard_body
+from allegati import collegamento_bacheca
 
 def get_studenti():
     raw = os.environ.get('STUDENTI', '[]')
@@ -379,6 +380,7 @@ def _msg_bacheca(msg, tipo='bacheca'):
         'mittente': _pick(msg, 'autore', 'desMittente'),
         'uid': str(_pick(msg, 'pk', 'uid')),
         'allegati': allegati,
+        'url': collegamento_bacheca(msg.get('url')) if tipo == 'bacheca' else '',
         'eliminato': msg.get('operazione') == 'D',
     }
 

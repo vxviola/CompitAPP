@@ -55,6 +55,7 @@ class DatabaseTest(DatabaseFixture, unittest.TestCase):
         conn = models.get_db()
         r = conn.execute('SELECT * FROM bacheca WHERE id=7').fetchone()
         self.assertEqual((r['titolo'], r['notificato'], r['allegati']), ('Esistente', 1, '[]'))
+        self.assertEqual(r['url'], '')
         conn.close()
         self.inserisci('Luca')
         with self.assertRaises(sqlite3.IntegrityError):
@@ -91,6 +92,15 @@ class DatabaseTest(DatabaseFixture, unittest.TestCase):
 
 
 class ParsingTest(unittest.TestCase):
+    def test_collegamenti_web_solo_dal_campo_url_della_comunicazione(self):
+        url = 'https://materiali.example/lezione?a=1&b=2#pagina'
+        self.assertEqual(argo_client._msg_bacheca({'url': '  ' + url + '  '})['url'], url)
+        self.assertEqual(argo_client._msg_bacheca({'listaAllegati': [{'pk': 'file', 'url': url}]})['url'], '')
+        for valore in (None, {}, 'javascript:void(0)', 'data:text/plain,ciao', '//example.org',
+                       'https://', 'https://[', 'https://user:password@example.org', 'https://example.org/\nfile'):
+            with self.subTest(valore=valore):
+                self.assertEqual(argo_client._msg_bacheca({'url': valore})['url'], '')
+
     def test_lista_allegati_normalizzata_senza_url_temporanei(self):
         msg = argo_client._msg_bacheca({'pk': 'msg', 'messaggio': 'Test', 'listaAllegati': [
             {'pk': 'file-1', 'nomeFile': 'Circolare è.pdf', 'descrizioneFile': 'Programma',
@@ -194,6 +204,34 @@ class RouteTest(DatabaseFixture, unittest.TestCase):
         p = patch('app.get_studenti', return_value=STUDENTI)
         p.start()
         self.addCleanup(p.stop)
+
+    def test_link_e_file_nella_stessa_comunicazione(self):
+        url = 'https://materiali.example/lezione?a=1&b=2#pagina'
+        conn = models.get_db()
+        try:
+            conn.execute('UPDATE bacheca SET url=? WHERE id=?', (url, self.id))
+            conn.commit()
+        finally:
+            conn.close()
+        html = self.client.get('/addon/bacheca', query_string={'studente': STUDENTI[0]['nome']}).text
+        self.assertIn('href="https://materiali.example/lezione?a=1&amp;b=2#pagina" target="_blank" rel="noopener noreferrer"', html)
+        self.assertIn('Apri collegamento', html)
+        self.assertIn(f'/bacheca/{self.id}/allegati/0?', html)
+        self.assertIn('data-files="2"', html)
+        other = self.client.get('/bacheca', query_string={'studente': STUDENTI[1]['nome']}).text
+        self.assertNotIn('materiali.example', other)
+
+    def test_avviso_con_solo_link_dalla_sincronizzazione_alla_bacheca(self):
+        msg = {'pk': 'msg-1', 'desOggetto': 'Circolare', 'data': '2026-10-26',
+               'url': 'https://materiali.example/lezione', 'listaAllegati': []}
+        with patch.object(scheduler, 'get_studenti', return_value=STUDENTI[:1]), \
+                patch('argo_client.dashboard_sync', return_value={'bacheca': [msg]}):
+            scheduler.sync_bacheca()
+        html = self.client.get('/bacheca', query_string={'studente': STUDENTI[0]['nome']}).text
+        self.assertIn('href="https://materiali.example/lezione"', html)
+        self.assertIn('Apri collegamento', html)
+        self.assertIn('data-files="1"', html)
+        self.assertNotIn('DOCUMENTI DA SCARICARE', html)
 
     def test_html_e_link_ingress(self):
         for prefix in ('', '/addon', '/app/addon', '/api/hassio_ingress/token'):

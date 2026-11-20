@@ -9,6 +9,22 @@ MAX_BYTES = 50 * 1024 * 1024
 DOMINI_DOWNLOAD = ('portaleargo.it', 'argosoft.it', 'argosoft.cloud', 'amazonaws.com')
 
 
+def collegamento_bacheca(valore):
+    """Indirizzo web allegato all'avviso, aperto direttamente dal browser."""
+    if not isinstance(valore, str):
+        return ''
+    url = valore.strip()
+    if not url or '\\' in url or any(c.isspace() or ord(c) < 32 or ord(c) == 127 for c in url):
+        return ''
+    try:
+        parti = urlsplit(url)
+        if parti.scheme in ('http', 'https') and parti.hostname and parti.username is None and parti.password is None:
+            return url
+    except ValueError:
+        pass
+    return ''
+
+
 def leggi_allegati(valore):
     try:
         allegati = json.loads(valore or '[]')

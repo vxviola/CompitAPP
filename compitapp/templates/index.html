@@ -68,10 +68,10 @@
                 <a class="news-item" href="{{ ui_link('/bacheca') }}#msg-{{ msg['id'] }}">
                     <div class="news-meta"><span class="badge badge-primary">Comunicazione</span><time datetime="{{ msg['data'] }}">{{ msg['data']|data_breve }}</time></div>
                     <h3>{{ msg['titolo'] }}</h3>
-                    <div class="news-footer"><span>{% if msg['allegati'] %}{{ icon('paperclip','sm') }} {{ msg['allegati']|length }} {{ 'allegato' if msg['allegati']|length == 1 else 'allegati' }}{% else %}{{ msg['mittente'] or 'Dalla scuola' }}{% endif %}</span>{{ icon('arrow','sm') }}</div>
+                    <div class="news-footer"><span>{% if msg['allegati'] %}{{ icon('paperclip','sm') }} {{ msg['allegati']|length }} {{ 'allegato' if msg['allegati']|length == 1 else 'allegati' }}{% if msg['url'] %} · 1 link{% endif %}{% elif msg['url'] %}1 link{% else %}{{ msg['mittente'] or 'Dalla scuola' }}{% endif %}</span>{{ icon('arrow','sm') }}</div>
                 </a>
                 {% else %}<div class="empty-state">{{ icon('board') }}<strong>Ancora nessuna novità.</strong>Le comunicazioni compariranno qui dopo la sincronizzazione.</div>{% endfor %}
-                <a href="{{ ui_link('/bacheca', allegati=1) }}" class="text-link" style="border-top:1px solid var(--border);padding-top:14px;width:100%">{{ icon('paperclip','sm') }} Cerca comunicazioni con allegati {{ icon('arrow','sm') }}</a>
+                <a href="{{ ui_link('/bacheca', allegati=1) }}" class="text-link" style="border-top:1px solid var(--border);padding-top:14px;width:100%">{{ icon('paperclip','sm') }} Cerca comunicazioni con file o link {{ icon('arrow','sm') }}</a>
             </section>
 
             <section class="card"><div class="card-header"><h2 class="card-title">Piccoli e grandi progressi</h2><a class="text-link" href="{{ ui_link('/voti') }}">{{ icon('arrow','sm') }}<span class="sr-only">Tutti i voti</span></a></div>

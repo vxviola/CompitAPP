@@ -142,7 +142,7 @@ def _migra_eventi(conn):
     for definizione in ('completato INTEGER NOT NULL DEFAULT 0', 'completato_il TEXT'):
         _aggiungi_colonna(conn, 'compiti', definizione)
     for definizione in ('letta INTEGER NOT NULL DEFAULT 0', 'preferito INTEGER NOT NULL DEFAULT 0',
-                        'promemoria_locale TEXT'):
+                        'promemoria_locale TEXT', "url TEXT NOT NULL DEFAULT ''"):
         _aggiungi_colonna(conn, 'bacheca', definizione)
     conn.execute('''CREATE TABLE IF NOT EXISTS argo_eventi (
         studente TEXT NOT NULL, categoria TEXT NOT NULL, uid TEXT NOT NULL,

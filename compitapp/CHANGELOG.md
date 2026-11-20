@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.4.10 – Collegamenti nella bacheca di classe
+
+- Le comunicazioni con un indirizzo web mostrano il pulsante **Apri collegamento**, anche quando contengono soltanto il link. Il filtro **Con file o link** include questi avvisi.
+- Al primo aggiornamento del registro, UniScuola recupera da Argo anche i collegamenti disponibili nelle comunicazioni dell’anno scolastico già sincronizzate.
+
 ## 2.4.9 - ripristino accesso e dati tramite Famiglia WEB
 
 - Accesso e sincronizzazione passano al backend ufficiale Famiglia WEB, dopo risposte HTTP 503 dal precedente endpoint appfamiglia.
