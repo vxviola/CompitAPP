@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.4.11 – Voti, medie e stato del registro
+
+- La sincronizzazione usa l’elenco voti di Famiglia WEB e accetta il formato precedente quando quello corrente è assente. Alla prima sincronizzazione riuscita verifica anche lo storico dell’anno. Accorpa le copie per cui Argo fornisce una corrispondenza e conserva le prove distinte, anche a parità di data, materia e voto. Il recupero dello storico è silenzioso.
+- L’aggiornamento da 2.4.10 crea una copia SQLite privata accanto al database, con suffisso `.prima-voti-2.4.11.sqlite`, se l’archivio contiene voti. Nelle statistiche delle Impostazioni compare il numero di gruppi con campi identici ancora presenti.
+- I giudizi testuali sono consultabili in dashboard, card e Telegram. Le medie riportate da Argo hanno la precedenza per ciascuna materia. Quando manca una media ufficiale, UniScuola usa i voti numerici archiviati. Il bot segue la stessa regola anche per le materie assenti dagli ultimi quindici voti.
+- La barra superiore mostra lo stato del registro su tutte le pagine, anche su telefono. Tocca lo stato per vedere gli orari dell’ultima sincronizzazione e del prossimo controllo, l’eventuale errore e il collegamento alle Impostazioni.
+- Corretta la lettura delle assenze quando la risposta contiene due formati. La diagnostica dei prefissi di Home Assistant mostra la presenza dei prefissi. I log di configurazione e invio Telegram omettono token e identificativi delle chat.
+
 ## 2.4.10 – Collegamenti nella bacheca di classe
 
 - Le comunicazioni con un indirizzo web mostrano il pulsante **Apri collegamento**, anche quando contengono soltanto il link. Il filtro **Con file o link** include questi avvisi.

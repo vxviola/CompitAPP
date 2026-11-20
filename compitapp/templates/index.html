@@ -1,15 +1,7 @@
 {% extends "base.html" %}
-{% from "ui_macros.html" import icon, task with context %}
+{% from "ui_macros.html" import icon, task, voto_chip with context %}
 {% block content %}
 <div class="container">
-    <section id="sync-diagnostics" class="sync-diagnostics {{ sync_stato.get('livello', 'attesa') }}" aria-label="Diagnostica sincronizzazione" role="status" aria-live="polite" aria-atomic="true">
-        <h2>Stato del registro</h2>
-        <strong id="diagnostic-message">{{ sync_stato.get('messaggio', 'In attesa del primo controllo') }}</strong>
-        <p id="diagnostic-last">Ultima sincronizzazione riuscita: {{ sync_etichetta or 'non disponibile' }}</p>
-        <p id="diagnostic-next">{% if sync_stato.get('prossimo_tentativo') %}Prossimo controllo: {{ sync_stato['prossimo_tentativo'] }}{% else %}Nessun prossimo controllo confermato.{% endif %}</p>
-        <p id="diagnostic-action">{{ sync_stato.get('azione', 'Verifica il collegamento nelle Impostazioni.') }}</p>
-        <a class="text-link" href="{{ ui_link('/configurazione') }}">Apri le Impostazioni</a>
-    </section>
     <section class="card welcome-card" aria-label="Riepilogo della giornata">
         <div>
             <div class="eyebrow">{{ data_oggi }}</div>
@@ -23,7 +15,7 @@
     <div class="quick-tools"><a class="feature-button" href="{{ ui_link('/zaino') }}">{{ icon('book','sm') }} Prepara lo zaino</a><a class="feature-button secondary" href="{{ ui_link('/ricerca') }}">{{ icon('search','sm') }} Cerca nel registro</a></div>
     <div class="overview-grid" aria-label="Il registro in breve">
         <a href="#attivita" class="overview-card"><div class="overview-label">{{ icon('book') }} Compiti per domani</div><div class="overview-value">{{ compiti_domani|length }}</div><div class="overview-foot">Da preparare per {{ domani|data_breve }}</div>{{ icon('arrow','overview-arrow') }}</a>
-        <a href="{{ ui_link('/voti') }}" class="overview-card"><div class="overview-label">{{ icon('chart') }} Media generale</div><div class="overview-value">{{ ('%.2f'|format(media))|replace('.', ',') if media is not none else '—' }}</div><div class="overview-foot">{{ 'Dal registro scolastico' if media is not none else 'Nessun voto disponibile' }}</div>{{ icon('arrow','overview-arrow') }}</a>
+        <a href="{{ ui_link('/voti') }}" class="overview-card"><div class="overview-label">{{ icon('chart') }} Media generale</div><div class="overview-value">{{ ('%.2f'|format(media))|replace('.', ',') if media is not none else '—' }}</div><div class="overview-foot">{{ 'Dal registro scolastico' if media_ufficiale else 'Dai voti numerici in archivio' if media is not none else 'Nessuna media numerica disponibile' }}</div>{{ icon('arrow','overview-arrow') }}</a>
         <a href="{{ ui_link('/voti') }}" class="overview-card"><div class="overview-label">{{ icon('star') }} Ultimo voto</div><div class="overview-value">{{ ultimi_voti[0]['voto'] if ultimi_voti else '—' }}</div><div class="overview-foot">{{ ultimi_voti[0]['materia']|capitalize if ultimi_voti else 'Il percorso inizia qui' }}</div>{{ icon('arrow','overview-arrow') }}</a>
         <a href="{{ ui_link('/assenze') }}" class="overview-card"><div class="overview-label">{{ icon('check') }} Assenze</div><div class="overview-value">{{ assenze_mese }}</div><div class="overview-foot">Totale in archivio</div>{{ icon('arrow','overview-arrow') }}</a>
     </div>
@@ -75,8 +67,8 @@
             </section>
 
             <section class="card"><div class="card-header"><h2 class="card-title">Piccoli e grandi progressi</h2><a class="text-link" href="{{ ui_link('/voti') }}">{{ icon('arrow','sm') }}<span class="sr-only">Tutti i voti</span></a></div>
-                {% for v in ultimi_voti[:3] %}{% set num = v['voto']|replace(',', '.')|float(-1) %}
-                <div class="grades-row"><div class="voto-chip {{ 'voto-ok' if num >= soglia_voto else 'voto-warn' if num >= soglia_voto - 1 else 'voto-bad' }}">{{ v['voto'] }}</div><div><strong>{{ v['materia']|capitalize }}</strong><span>{{ v['data']|data_breve }}{% if v['descrizione'] %} · {{ v['descrizione'][:65] }}{% endif %}</span></div></div>
+                {% for v in ultimi_voti[:3] %}
+                <div class="grades-row">{{ voto_chip(v['voto'], soglia_voto) }}<div><strong>{{ v['materia']|capitalize }}</strong><span>{{ v['data']|data_breve }}{% if v['descrizione'] %} · {{ v['descrizione'][:65] }}{% endif %}</span></div></div>
                 {% else %}<div class="empty-state">Nessun voto ancora disponibile. Qui troverai i prossimi aggiornamenti.</div>{% endfor %}
             </section>
 
@@ -86,6 +78,5 @@
             </section>
         </div>
     </div>
-    <p class="footnote">{{ icon('refresh', 'sm') }}<span id="dashboard-sync">{{ 'Ultimo controllo incompleto' if sync_stato.get('esito') == 'errore' else ('Ultimo aggiornamento · ' ~ sync_etichetta) if sync_etichetta else 'In attesa del primo aggiornamento' }}</span></p>
 </div>
 {% endblock %}

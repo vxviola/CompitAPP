@@ -9,6 +9,7 @@ from datetime import datetime, date, timedelta, timezone
 from hashlib import sha256
 import importlib.util
 import json
+from math import isfinite
 from pathlib import Path
 import sys
 import tempfile
@@ -45,7 +46,7 @@ class Recovery(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.models = module('models', dict(sqlite3=__import__('sqlite3'), os=__import__('os')))
+        self.models = module('models', dict(sqlite3=__import__('sqlite3'), os=__import__('os'), isfinite=isfinite))
         self.models.DB_PATH = str(Path(self.tmp.name) / 'test.db')
         self.models.init_db()
         self.requests = types.SimpleNamespace(RequestException=RequestError, post=Mock())
@@ -62,8 +63,12 @@ class Recovery(unittest.TestCase):
         self.mods = patch.dict(sys.modules, {'models':self.models, 'sync_state':self.state,'scheduler':self.scheduler,
             'argo_client':self.argo,'ha_client':self.ha,'argofamiglia.CONSTANTS':constants})
         self.mods.start(); self.addCleanup(self.mods.stop)
+        voti = module('voti_duplicati', {})
         self.sync = module('sync_argo', dict(json=json,sha256=sha256,Counter=Counter,date=date,datetime=datetime,
             timedelta=timedelta,urlencode=urlencode,pytz=types.SimpleNamespace(timezone=lambda _:timezone.utc),
+            riconcilia_identita_voto=voti.riconcilia_identita_voto,
+            riconcilia_copia_anonima=voti.riconcilia_copia_anonima,
+            separa_identita_voti=voti.separa_identita_voti,
             argo_client=self.argo,sync_state=self.state,get_db=self.models.get_db))
         self.sync._notifica = Mock()
         self.st = dict(nome='SYNTHETIC_A',codice_scuola='FAKE',username='FAKE',password='FAKE',alunno=2)

@@ -8,7 +8,7 @@ from apscheduler.triggers.cron import CronTrigger
 import pytz
 
 from argo_client import get_studenti
-from models import get_db, media_argo
+from models import get_db, riepilogo_medie
 from notifier import reminder_compiti_domani, sync_sensori_ha
 
 TZ = pytz.timezone('Europe/Rome')
@@ -138,7 +138,7 @@ def _taglia(s, n=400):
     return s if len(s) <= n else s[:n - 1] + '…'
 
 
-def _dettagli_sensori(conn, nome, oggi, domani):
+def _dettagli_sensori(conn, nome, oggi, domani, medie):
     """Elenchi per il popup della card (attributo `elenco` dei sensori). Tenuti corti:
     Home Assistant sconsiglia attributi molto grandi."""
     def compiti(giorno):
@@ -148,14 +148,6 @@ def _dettagli_sensori(conn, nome, oggi, domani):
             for r in conn.execute(
                 "SELECT data, materia, voto, descrizione FROM voti WHERE studente=? "
                 "AND voto NOT IN ('0','0.0','0,0','N','') ORDER BY data DESC, id DESC LIMIT 15", (nome,))]
-    per_materia = {}
-    for r in conn.execute("SELECT materia, voto FROM voti WHERE studente=? AND voto NOT IN ('0','0.0','0,0','N','')", (nome,)):
-        try:
-            per_materia.setdefault(r['materia'], []).append(float(str(r['voto']).replace(',', '.')))
-        except Exception:
-            pass
-    medie = sorted(({'materia': m, 'media': round(sum(v) / len(v), 2), 'n': len(v)} for m, v in per_materia.items()),
-                   key=lambda x: x['materia'])
     assenze = [{'data': r['data'], 'tipo': r['tipo'], 'descrizione': _taglia(r['descrizione'], 150),
                 'giustificata': bool(r['giustificata'])} for r in conn.execute(
                 'SELECT data, tipo, descrizione, giustificata FROM assenze WHERE studente=? ORDER BY data DESC, id DESC LIMIT 20', (nome,))]
@@ -176,29 +168,18 @@ def _aggiorna_sensori(nome):
         n_assenze = conn.execute('SELECT COUNT(*) as n FROM assenze WHERE studente=?', (nome,)).fetchone()['n']
         n_bacheca = conn.execute('SELECT COUNT(*) as n FROM bacheca WHERE studente=? AND data>=?', (nome, (date.today() - timedelta(days=30)).strftime('%Y-%m-%d'))).fetchone()['n']
         ultimo_voto = conn.execute("SELECT voto, materia FROM voti WHERE studente=? AND voto NOT IN ('0','0.0','0,0','N','') ORDER BY data DESC, id DESC LIMIT 1", (nome,)).fetchone()
-        tutti_voti = conn.execute("SELECT voto FROM voti WHERE studente=? AND voto NOT IN ('0','0.0','0,0','N','')", (nome,)).fetchall()
-        dettagli = _dettagli_sensori(conn, nome, oggi, domani)
-        ma = media_argo(conn, nome)
+        medie = riepilogo_medie(conn, nome)
+        materie = [{'materia': m, 'media': v, 'n': medie['conteggi'].get(m, 0),
+                    'fonte': 'Argo' if m in medie['materie_argo'] else 'UniScuola'}
+                   for m, v in sorted(medie['materie'].items())]
+        dettagli = _dettagli_sensori(conn, nome, oggi, domani, materie)
         conn.close()
-        valori = []
-        for v in tutti_voti:
-            try:
-                valori.append(float(str(v['voto']).replace(',','.')))
-            except Exception:
-                pass
-        media = round(sum(valori)/len(valori), 2) if valori else 'N/D'
-        if ma and ma['generale'] is not None:
-            media = ma['generale']
-        if ma and ma['materie']:
-            conteggi = {m['materia']: m['n'] for m in dettagli.get('medie', [])}
-            dettagli['medie'] = sorted(({'materia': m, 'media': v, 'n': conteggi.get(m, 0)}
-                                        for m, v in ma['materie'].items()), key=lambda x: x['materia'])
         sync_sensori_ha(nome, {
             'compiti_oggi': n_oggi, 'compiti_domani': n_domani,
             'assenze_totali': n_assenze, 'bacheca_non_lette': n_bacheca,
             'ultimo_voto': ultimo_voto['voto'] if ultimo_voto else 'N/D',
             'ultima_materia': ultimo_voto['materia'] if ultimo_voto else '',
-            'media_voti': media,
+            'media_voti': medie['generale'] if medie['generale'] is not None else 'N/D',
             'dettagli': dettagli
         })
     except Exception as e:

@@ -274,15 +274,26 @@ def _pick(d, *chiavi, default=''):
     return default
 
 
-def _voto_valido(valore):
+def _voto_valido(valore, *, verifica_formato=False):
     """True se e' un vero voto. Scarta le annotazioni senza voto (valore 0 / vuoto)."""
-    if valore in (None, ''):
+    if valore is None:
+        return False
+    if not isinstance(valore, (str, int, float)) or isinstance(valore, bool):
+        if verifica_formato:
+            raise ArgoSyncError('Formato valutazione non valido')
         return False
     t = str(valore).strip().replace(',', '.')
+    if not t:
+        return False
     try:
-        return float(t) > 0
+        numero = float(t)
     except ValueError:
         return t.upper() not in ('N', '-', '--')   # voti a giudizio (es. "Ottimo")
+    if not -float('inf') < numero < float('inf'):
+        if verifica_formato:
+            raise ArgoSyncError('Valutazione numerica non finita')
+        return False
+    return numero > 0
 
 
 def fetch_voti(studente, giorni=0):
@@ -294,7 +305,7 @@ def fetch_voti(studente, giorni=0):
         voti = []
         dati = dashboard.get('data', {}).get('dati', [])
         for sezione in dati:
-            for v in list(sezione.get('voti', []) or []) + list(sezione.get('votiGiornalieri', []) or []):
+            for v in sezione.get('voti', sezione.get('votiGiornalieri')) or []:
                 valore = _pick(v, 'valore', 'decValore', 'decVoto', 'codVoto')
                 if not _voto_valido(valore):
                     continue
@@ -315,6 +326,10 @@ def fetch_voti(studente, giorni=0):
 def _bool_arg(v):
     return v is True or str(v).upper() in ('S', 'TRUE', '1')
 
+def chiave_appello(sezione):
+    return 'appello' if 'appello' in sezione else 'assenze'
+
+
 def fetch_assenze(studente, giorni=0):
     """Estrae assenze/ritardi/uscite (lista 'appello', o 'assenze' nelle versioni vecchie)"""
     dashboard = fetch_dashboard(studente, giorni)
@@ -324,7 +339,7 @@ def fetch_assenze(studente, giorni=0):
         assenze = []
         dati = dashboard.get('data', {}).get('dati', [])
         for sezione in dati:
-            for a in list(sezione.get('appello', []) or []) + list(sezione.get('assenze', []) or []):
+            for a in sezione.get(chiave_appello(sezione)) or []:
                 assenze.append({
                     'data': _pick(a, 'data', 'datAssenza'),
                     'tipo': _pick(a, 'codEvento', default='A'),  # A=assenza, R=ritardo, U=uscita
@@ -592,9 +607,6 @@ def fetch_promemoria(studente, giorni=0):
         return []
 
 
-_voti_campi_loggati = set()
-
-
 def medie_da_sezione(sezione):
     nomi = {str(m.get('pk')): (m.get('materia') or m.get('desMateria') or m.get('descrizione'))
             for m in sezione.get('listaMaterie') or [] if isinstance(m, dict)}
@@ -606,20 +618,6 @@ def medie_da_sezione(sezione):
     return {'generale': generale, 'materie': materie} if generale not in (None, '') or materie else None
 
 
-def _log_campi_voto(nome, sezione):
-    """Una volta per studente stampa i campi di un voto come arrivano da Argo (aiuta a capire
-    come Argo segna i voti «non fa media»). Niente credenziali o token."""
-    if nome in _voti_campi_loggati:
-        return
-    voti = list(sezione.get('voti', []) or [])
-    if not voti:
-        return
-    _voti_campi_loggati.add(nome)
-    for v in voti[:2]:
-        parti = [f"{k}={v[k]}" for k in sorted(v) if not isinstance(v[k], (dict, list)) and len(str(v[k])) < 80]
-        print(f"[ARGO] Campi di un voto ({nome}): " + ", ".join(parti))
-
-
 def fetch_medie(studente, giorni=0):
     """Medie calcolate dal portale Argo (le stesse dell'app DiDUP, senza i voti «non fa media»):
     mediaGenerale e mediaMaterie, con listaMaterie per i nomi. None se Argo non le manda."""
@@ -629,22 +627,7 @@ def fetch_medie(studente, giorni=0):
         return None
     try:
         for sezione in dashboard.get('data', {}).get('dati', []):
-            _log_campi_voto(nome, sezione)
-            nomi = {}
-            for m in sezione.get('listaMaterie') or []:
-                if isinstance(m, dict):
-                    nomi[str(m.get('pk'))] = m.get('materia') or m.get('desMateria') or m.get('descrizione')
-            materie = {}
-            mm = sezione.get('mediaMaterie') or {}
-            righe = mm.items() if isinstance(mm, dict) else ((str(x.get('pk')), x) for x in mm if isinstance(x, dict))
-            for pk, m in righe:
-                if isinstance(m, dict) and m.get('mediaMateria') not in (None, '', 0, '0'):
-                    materie[nomi.get(str(pk)) or str(pk)] = m.get('mediaMateria')
-            generale = sezione.get('mediaGenerale')
-            print(f"[ARGO] Medie Argo {nome}: generale={generale}, materie={materie}")
-            if generale in (None, '') and not materie:
-                return None
-            return {'generale': generale, 'materie': materie}
+            return medie_da_sezione(sezione)
     except Exception as e:
         print(f"[ARGO] Errore lettura medie {nome}: {e}")
     return None

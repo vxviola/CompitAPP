@@ -191,7 +191,7 @@ La scheda Lovelace riprende lo stile di UniScuola: verde salvia, superfici chiar
 All’avvio l’app copia la nuova risorsa in `/config/www/uniscuola/`. Aggiungi **una sola** risorsa come **modulo JavaScript**:
 
 ```text
-/local/uniscuola/uniscuola-card.js?v=247
+/local/uniscuola/uniscuola-card.js?v=2411
 ```
 
 Poi crea una card manuale:
@@ -209,7 +209,7 @@ I nomi devono corrispondere agli studenti configurati nell’app. Per scegliere 
 
 `addon_slug` è l’identificativo dell’app installata: lo trovi nell’indirizzo aperto da **Apri interfaccia web** o nella pagina dell’app. Per questo fork è normalmente `ee1c5e4d_compitapp`: mantienilo anche dopo il cambio di nome. Se hai abilitato **Mostra nella barra laterale** e c’è una sola CompitAPP/UniScuola, il collegamento viene rilevato anche senza questo campo. Con originale e fork presenti, specifica il fork per evitare ambiguità. Puoi usare anche `open_url` con il percorso locale del pannello, ad esempio `/ee1c5e4d_compitapp`.
 
-**Se usi già la card precedente:** continua a funzionare con `type: custom:compitapp-card` e `/local/compitapp/compitapp-card.js`. Dopo l’aggiornamento cambia l’URL della risorsa esistente in `/local/compitapp/compitapp-card.js?v=247` e ricarica la dashboard; evita di aggiungere una seconda risorsa. Non serve ricreare le card. Il vecchio esempio `open_url: /hassio/ingress/compitapp` viene sostituito dal rilevamento del pannello; se mantieni anche l’app originale, imposta `addon_slug` come sopra.
+**Se usi già la card precedente:** continua a funzionare con `type: custom:compitapp-card` e `/local/compitapp/compitapp-card.js`. Dopo l’aggiornamento cambia l’URL della risorsa esistente in `/local/compitapp/compitapp-card.js?v=2411` e ricarica la dashboard; evita di aggiungere una seconda risorsa. Non serve ricreare le card. Il vecchio esempio `open_url: /hassio/ingress/compitapp` viene sostituito dal rilevamento del pannello; se mantieni anche l’app originale, imposta `addon_slug` come sopra.
 
 ### Aggiornare a UniScuola e salvare i documenti su iPhone
 

@@ -3,6 +3,7 @@ import json
 import html
 import requests
 from datetime import date, datetime, timedelta
+from models import voto_numerico
 from orario_utils import emoji_materia
 
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN', '')
@@ -44,11 +45,11 @@ def send_telegram(messaggio):
                 json={'chat_id': chat_id, 'text': messaggio, 'parse_mode': 'HTML'},
                 timeout=10
             )
-            print(f"[TELEGRAM] {'✅' if resp.status_code==200 else '❌'} → {chat_id}")
+            print(f"[TELEGRAM] Invio notifica HTTP {resp.status_code}")
             if resp.status_code != 200:
                 ok = False
         except Exception as e:
-            print(f"[TELEGRAM] Errore {chat_id}: {e}")
+            print(f"[TELEGRAM] Invio non riuscito ({type(e).__name__})")
             ok = False
     return ok
 
@@ -62,21 +63,20 @@ def notifica_nuovi_compiti(nome, compiti_nuovi):
         send_telegram_compiti(msg.strip(), nome)
 
 def notifica_nuovo_voto(nome, materia, voto, descrizione=''):
-    try:
-        voto_num = float(str(voto).replace(',','.'))
-        if voto_num < SOGLIA_VOTO:
-            emoji, avviso = "🔴", f"\n⚠️ <i>Sotto soglia ({SOGLIA_VOTO})!</i>"
-        elif voto_num >= 9:
-            emoji, avviso = "🌟", "\n🎉 <i>Ottimo risultato!</i>"
-        elif voto_num >= 7:
-            emoji, avviso = "🟢", ""
-        else:
-            emoji, avviso = "🟡", ""
-    except Exception:
+    voto_num = voto_numerico(voto)
+    if voto_num is None:
         emoji, avviso = "📊", ""
-    msg = f"{emoji} <b>{nome} — Nuovo voto!</b>\n\n📖 <b>{materia}</b>\n📊 Voto: <b>{voto}</b>{avviso}"
+    elif voto_num < SOGLIA_VOTO:
+        emoji, avviso = "🔴", f"\n⚠️ <i>Sotto soglia ({SOGLIA_VOTO})!</i>"
+    elif voto_num >= 9:
+        emoji, avviso = "🌟", "\n🎉 <i>Ottimo risultato!</i>"
+    elif voto_num >= 7:
+        emoji, avviso = "🟢", ""
+    else:
+        emoji, avviso = "🟡", ""
+    msg = f"{emoji} <b>{html.escape(nome)} — Nuovo voto!</b>\n\n📖 <b>{html.escape(materia)}</b>\n📊 Voto: <b>{html.escape(str(voto))}</b>{avviso}"
     if descrizione:
-        msg += f"\n💬 {descrizione}"
+        msg += f"\n💬 {html.escape(descrizione)}"
     send_telegram(msg)
 
 def notifica_assenza(nome, data, tipo):
@@ -172,8 +172,8 @@ def sync_sensori_ha(nome, stats):
         f'sensor.compitapp_{slug}_compiti_domani':  {'state': stats.get('compiti_domani',0), 'attributes': {'friendly_name': f'UniScuola {nome} - Compiti domani', 'icon': 'mdi:book-clock', 'unit_of_measurement': 'compiti', 'elenco': det.get('compiti_domani', [])}},
         f'sensor.compitapp_{slug}_assenze':         {'state': stats.get('assenze_totali',0), 'attributes': {'friendly_name': f'UniScuola {nome} - Assenze', 'icon': 'mdi:account-off', 'elenco': det.get('assenze', [])}},
         f'sensor.compitapp_{slug}_bacheca':         {'state': stats.get('bacheca_non_lette',0), 'attributes': {'friendly_name': f'UniScuola {nome} - Bacheca', 'icon': 'mdi:bulletin-board', 'elenco': det.get('bacheca', [])}},
-        f'sensor.compitapp_{slug}_ultimo_voto':     {'state': stats.get('ultimo_voto','N/D'), 'attributes': {'friendly_name': f'UniScuola {nome} - Ultimo voto', 'materia': stats.get('ultima_materia',''), 'icon': 'mdi:star', 'elenco': det.get('voti', [])}},
-        f'sensor.compitapp_{slug}_media_voti':      {'state': stats.get('media_voti','N/D'), 'attributes': {'friendly_name': f'UniScuola {nome} - Media voti', 'icon': 'mdi:chart-line', 'medie': det.get('medie', [])}},
+        f'sensor.compitapp_{slug}_ultimo_voto':     {'state': stats.get('ultimo_voto','N/D'), 'attributes': {'friendly_name': f'UniScuola {nome} - Ultimo voto', 'materia': stats.get('ultima_materia',''), 'icon': 'mdi:star', 'elenco': det.get('voti', []), 'soglia_voto': SOGLIA_VOTO}},
+        f'sensor.compitapp_{slug}_media_voti':      {'state': stats.get('media_voti','N/D'), 'attributes': {'friendly_name': f'UniScuola {nome} - Media voti', 'icon': 'mdi:chart-line', 'medie': det.get('medie', []), 'soglia_voto': SOGLIA_VOTO}},
     }
     for entity_id, payload in sensori.items():
         payload['attributes']['palette'] = palette
@@ -195,7 +195,7 @@ def send_telegram_to(chat_id, messaggio):
         )
         return resp.status_code == 200
     except Exception as e:
-        print(f"[TELEGRAM] Errore send_to {chat_id}: {e}")
+        print(f"[TELEGRAM] Invio non riuscito ({type(e).__name__})")
         return False
 
 def _studenti_config():

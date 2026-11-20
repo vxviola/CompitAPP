@@ -50,7 +50,8 @@ class StatoTest(DatabaseFixture, unittest.TestCase):
             try:
                 html = client.get('/configurazione').text
                 self.assertIn('sync-info is-error', html)
-                self.assertIn('Errore di accesso Argo', html)
+                self.assertIn('Accesso Argo non riuscito', html)
+                self.assertIn('id="sync-short">Errore registro', html)
                 self.assertNotIn('sync-info is-ok', html)
             finally:
                 sync_state.termina([s['nome'] for s in STUDENTI])

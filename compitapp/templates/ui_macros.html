@@ -26,3 +26,8 @@
     <div class="task-details"><h3>{{ c['materia']|capitalize }}</h3><p>{{ c['testo'] }}</p><span class="task-status">{{ 'Completato' if c['completato'] else 'Da fare' }}</span></div>
 </article>
 {%- endmacro %}
+{% macro voto_chip(voto, soglia) -%}
+    {% set n = voto|voto_numerico %}
+    {% if n is none %}<span class="badge badge-primary">{{ voto }}</span>
+    {% else %}<span class="voto-chip {{ 'voto-ok' if n >= soglia else 'voto-warn' if n >= soglia - 1 else 'voto-bad' }}">{{ voto }}</span>{% endif %}
+{%- endmacro %}

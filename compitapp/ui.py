@@ -3,10 +3,12 @@ from datetime import date, datetime
 from urllib.parse import urlencode
 from flask import request
 from preferenze import palette_studente
+from pytz import timezone
 
 MESI = ('gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno',
         'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre')
 GIORNI = ('Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica')
+FUSO_SCUOLA = timezone('Europe/Rome')
 
 
 def data_leggibile(valore, estesa=False):
@@ -17,6 +19,19 @@ def data_leggibile(valore, estesa=False):
     if estesa:
         return f'{GIORNI[giorno.weekday()]} {giorno.day} {MESI[giorno.month - 1]}'
     return f'{giorno.day} {MESI[giorno.month - 1][:3]}'
+
+
+def orario_registro(valore, futuro=False):
+    try:
+        dt = datetime.fromisoformat(valore)
+    except (TypeError, ValueError):
+        return ''
+    if dt.tzinfo is None:
+        return ''
+    dt = dt.astimezone(FUSO_SCUOLA)
+    if futuro and dt <= datetime.now(FUSO_SCUOLA):
+        return ''
+    return f'{data_leggibile(dt)}, {dt:%H:%M}'
 
 
 def base_ingress():
@@ -60,13 +75,8 @@ def contesto_ui(studenti, stato):
     if endpoint == 'home':
         endpoint = 'index'
     titolo, sottotitolo = pagine.get(endpoint, ('UniScuola', 'La scuola, con un po’ più di calma.'))
-    ultimo = stato.get('ultimo_successo')
-    try:
-        dt = datetime.fromisoformat(ultimo) if ultimo else None
-        etichetta = ('Oggi' if dt and dt.date() == date.today() else data_leggibile(ultimo)) + (f' alle {dt:%H:%M}' if dt else '')
-    except (ValueError, TypeError):
-        etichetta = ''
     return dict(ui_link=link, ui_base=base, ui_palette=palette_studente(scelto), ui_asset=lambda p: base + '/static/' + p,
                 pagina=endpoint, titolo_pagina=titolo, sottotitolo_pagina=sottotitolo,
-                ui_studente=scelto, sync_stato=stato, sync_etichetta=etichetta if ultimo else '',
+                ui_studente=scelto, sync_stato=stato, sync_etichetta=orario_registro(stato.get('ultimo_successo')),
+                sync_prossimo=orario_registro(stato.get('prossimo_tentativo'), futuro=True),
                 data_oggi=data_leggibile(date.today(), True))

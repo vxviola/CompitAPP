@@ -15,7 +15,7 @@ if (customElements.get('uniscuola-card')) return;
  *   addon_slug: ee1c5e4d_compitapp  # facoltativo se c’è una sola UniScuola nella barra laterale
  *   theme: auto                   # auto, light, dark
  */
-const UNISCUOLA_CARD_VERSION = '2.4.7';
+const UNISCUOLA_CARD_VERSION = '2.4.11';
 
 const _slug = (n) => String(n || '').toLowerCase().replace(/ /g, '_');
 const _esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -24,6 +24,16 @@ const _data = (d) => {
   return m ? `${m[3]}/${m[2]}/${m[1]}` : _esc(d || '');
 };
 const _tipo = { A: 'Assenza', R: 'Ritardo', U: 'Uscita anticipata' };
+function _numeroVoto(valore) {
+  const numero = Number(String(valore).trim().replace(',', '.'));
+  return Number.isFinite(numero) && numero > 0 ? numero : null;
+}
+function _classeVoto(valore, soglia) {
+  const numero = _numeroVoto(valore);
+  const limite = _numeroVoto(soglia) ?? 7;
+  if (numero === null) return '';
+  return numero >= limite ? 'ok' : numero >= limite - 1 ? 'mid' : 'bad';
+}
 
 const TILES = [
   { key: 'compiti_oggi', icon: 'book-open-outline', label: 'Compiti oggi', title: 'Compiti per oggi' },
@@ -252,16 +262,19 @@ class CompitappCard extends HTMLElement {
     } else if (t.key === 'ultimo_voto') {
       const l = a.elenco || [];
       corpo = l.length ? l.map((v) => {
-        const n = parseFloat(String(v.voto).replace(',', '.'));
-        const cl = isNaN(n) ? '' : (n < 6 ? 'bad' : n < 7 ? 'mid' : 'ok');
+        const cl = _classeVoto(v.voto, a.soglia_voto);
         return `<div class="riga voto"><div class="badge ${cl}">${_esc(v.voto)}</div><div><div class="mat">${_esc(v.materia)} <span class="dt">${_data(v.data)}</span></div>${v.descrizione ? `<div class="txt">${_esc(v.descrizione)}</div>` : ''}</div></div>`;
       }).join('') : vuoto('Ancora nessun voto.');
     } else if (t.key === 'media_voti') {
       const l = a.medie || [];
-      corpo = (l.length ? `<div class="riga"><div class="mat">Media generale</div><div class="txt"><b>${_esc(e.state)}</b></div></div>` + l.map((m) => {
-        const cl = m.media < 6 ? 'bad' : m.media < 7 ? 'mid' : 'ok';
-        return `<div class="riga voto"><div class="badge ${cl}">${_esc(m.media)}</div><div><div class="mat">${_esc(m.materia)}</div><div class="txt">${_esc(m.n)} ${m.n === 1 ? 'voto' : 'voti'}</div></div></div>`;
-      }).join('') : vuoto('Ancora nessun voto.'));
+      const generale = _numeroVoto(e.state);
+      const intestazione = generale === null ? '' : `<div class="riga"><div class="mat">Media generale</div><div class="txt"><b>${_esc(e.state)}</b></div></div>`;
+      const materie = l.map((m) => {
+        const cl = _classeVoto(m.media, a.soglia_voto);
+        const fonte = ['Argo', 'UniScuola'].includes(m.fonte) ? ' · ' + m.fonte : '';
+        return `<div class="riga voto"><div class="badge ${cl}">${_esc(m.media)}</div><div><div class="mat">${_esc(m.materia)}</div><div class="txt">${_esc(m.n)} ${m.n === 1 ? 'voto numerico' : 'voti numerici'} in archivio${fonte}</div></div></div>`;
+      }).join('');
+      corpo = intestazione + materie || vuoto('Nessuna media numerica disponibile.');
     } else if (t.key === 'assenze') {
       const l = a.elenco || [];
       corpo = l.length ? l.map((x) => `<div class="riga"><div class="mat">${_esc(_tipo[x.tipo] || x.tipo)} <span class="dt">${_data(x.data)}</span></div><div class="txt">${x.giustificata ? '✅ giustificata' : '⚠️ da giustificare'}${x.descrizione ? ' · ' + _esc(x.descrizione) : ''}</div></div>`).join('')

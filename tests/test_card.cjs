@@ -71,6 +71,22 @@ test('nuovo nome e vecchio tipo card sono entrambi registrati senza duplicazioni
   vm.runInContext(readFileSync(join(__dirname, '../compitapp/card/compitapp-card.js'), 'utf8'), context);
   assert.equal(registered.size, size);
 });
+test('il popup presenta la media generale anche senza medie per materia', () => {
+  const c = card();
+  c._popup = 'media_voti';
+  c._hass.states['sensor.compitapp_anna_media_voti'] = {state: '8,4', attributes: {medie: []}};
+  assert.match(c._popupHtml(), /Media generale[\s\S]+8,4/);
+});
+test('giudizi e voti annotati non sono valutati come insufficienze numeriche', () => {
+  const c = card();
+  c._popup = 'ultimo_voto';
+  c._hass.states['sensor.compitapp_anna_ultimo_voto'] = {state: '5+', attributes: {soglia_voto: 8,
+    elenco: ['5+', 'Ottimo', '7,5'].map(voto => ({materia: 'Storia', voto}))}};
+  const html = c._popupHtml();
+  assert.ok(!html.includes('badge bad'));
+  assert.match(html, /badge mid">7,5/);
+  assert.match(html, /badge ">5\+/);
+});
 test('palette del figlio segue i sensori e può essere personalizzata nella card', () => {
   const c = card();
   c._hass.states['sensor.compitapp_anna_compiti_oggi'] = {attributes: {palette: 'rosa'}};

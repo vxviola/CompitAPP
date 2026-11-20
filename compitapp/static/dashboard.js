@@ -69,6 +69,18 @@
     if ($('more-close')) $('more-close').addEventListener('click', function () { closeMenu(); more.focus(); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && menu && !menu.hidden) { closeMenu(); more.focus(); } });
     document.addEventListener('click', function (e) { if (menu && !menu.hidden && !menu.contains(e.target) && !more.contains(e.target)) closeMenu(); });
+    const registroStatus = $('registro-status');
+    if (registroStatus) {
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && registroStatus.open) {
+                registroStatus.open = false;
+                $('sync-info').focus();
+            }
+        });
+        document.addEventListener('click', function (e) {
+            if (registroStatus.open && !registroStatus.contains(e.target)) registroStatus.open = false;
+        });
+    }
     document.querySelectorAll('[data-task-tab]').forEach(function (tab) {
         tab.addEventListener('click', function () {
             document.querySelectorAll('[data-task-tab]').forEach(function (t) {
@@ -94,7 +106,7 @@
         if (!value) return 'I dati compariranno dopo il primo aggiornamento';
         const dt = new Date(value);
         if (isNaN(dt.getTime())) return '';
-        return dt.toLocaleString('it-IT', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+        return dt.toLocaleString('it-IT', {timeZone:'Europe/Rome', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
     }
     function renderSync(state) {
         document.querySelectorAll('[data-sync-button]').forEach(function (button) {
@@ -106,15 +118,15 @@
         if (info) {
             info.classList.toggle('is-error', state.esito === 'errore');
             info.classList.toggle('is-ok', state.esito === 'ok' && !state.in_corso && !state.dati_obsoleti);
-            $('sync-label').textContent = statusText(state);
-            $('sync-time').textContent = timeText(state.ultimo_successo);
+            const label = statusText(state);
+            if ($('sync-label').textContent !== label) $('sync-label').textContent = label;
+            if ($('sync-short')) $('sync-short').textContent = state.esito === 'errore' ? 'Errore registro' : state.in_corso ? 'In corso' : state.esito === 'ok' && !state.dati_obsoleti ? 'Registro OK' : 'In attesa';
         }
         const connection = $('connection-status');
         if (connection) {
             connection.className = 'alert ' + (state.esito === 'errore' ? 'alert-danger' : state.esito === 'ok' && !state.in_corso && !state.dati_obsoleti ? 'alert-success' : 'alert-warning');
             connection.textContent = statusText(state) + (state.ultimo_successo ? ' · Ultimo successo: ' + timeText(state.ultimo_successo) : '');
         }
-        if ($('dashboard-sync')) $('dashboard-sync').textContent = statusText(state) + (state.ultimo_successo ? ' · ' + timeText(state.ultimo_successo) : '');
         if ($('sync-diagnostics')) {
             $('sync-diagnostics').className = 'sync-diagnostics ' + (state.esito === 'errore' ? 'errore' : state.dati_obsoleti || state.in_corso || state.esito !== 'ok' ? 'attesa' : 'ok');
             $('diagnostic-message').textContent = statusText(state);
@@ -144,7 +156,6 @@
         } catch (_) {
             if (waiting) showToast('Connessione interrotta. Il controllo può continuare in background; riprovo a verificarlo.', 6000, true);
             renderSync({esito: 'errore', ultimo_successo: lastSeen, messaggio: 'Stato non raggiungibile — aggiornamento non verificato', azione: 'Verifica la connessione a UniScuola.'});
-            if ($('sync-label')) $('sync-label').textContent = 'Stato non raggiungibile · aggiornamento non verificato';
             syncTimer = setTimeout(pollSync, 15000);
         }
     }

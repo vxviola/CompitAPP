@@ -6,7 +6,7 @@ const source = fs.readFileSync(require('node:path').join(__dirname, '../compitap
 
 test('errore resta rosso durante retry, verde solo al successo, rosso se stato irraggiungibile', async () => {
     const nodes = {};
-    for (const id of ['sync-info', 'sync-label', 'sync-time', 'connection-status', 'dashboard-sync']) {
+    for (const id of ['sync-info', 'sync-label', 'sync-short', 'connection-status']) {
         const classes = new Set();
         nodes[id] = {textContent:'', className:'', classes,
             classList:{toggle:(c,on)=>on ? classes.add(c) : classes.delete(c)}};
@@ -29,6 +29,7 @@ test('errore resta rosso durante retry, verde solo al successo, rosso se stato i
     const flush = () => new Promise(resolve=>setImmediate(resolve));
     await flush();
     assert(nodes['sync-info'].classes.has('is-error'));
+    assert.equal(nodes['sync-short'].textContent, 'Errore registro');
     assert.match(nodes['sync-label'].textContent,/Errore di accesso/);
     await timers.shift()();
     assert(nodes['sync-info'].classes.has('is-error'));
@@ -41,5 +42,28 @@ test('errore resta rosso durante retry, verde solo al successo, rosso se stato i
     assert(nodes['sync-info'].classes.has('is-error'));
     assert(!nodes['sync-info'].classes.has('is-ok'));
     assert.match(nodes['sync-label'].textContent,/non raggiungibile/);
-    assert.notEqual(nodes['sync-time'].textContent,'I dati compariranno dopo il primo aggiornamento');
+    assert.equal(nodes['sync-short'].textContent, 'Errore registro');
+});
+
+test('il pannello si richiude con Escape restituendo il focus e con un clic esterno', async () => {
+    const events = {};
+    const inside = {};
+    const details = {open: true, contains: (target) => target === inside};
+    let focused = false;
+    const summary = {focus: () => { focused = true; }, classList: {toggle() {}}};
+    const nodes = {'registro-status': details, 'sync-info': summary, 'sync-label': {}, 'sync-short': {}};
+    vm.runInNewContext(source, {window: {COMPITAPP: {base:'/addon',studente:'Test'}}, URL, location: {origin:'https://casa.example'},
+        document: {documentElement: {dataset:{}}, getElementById: id=>nodes[id]||null, querySelectorAll:()=>[],
+            addEventListener: (name, fn) => (events[name] ||= []).push(fn)},
+        localStorage: {getItem:()=>null}, matchMedia:()=>({matches:false}),
+        setTimeout:()=>1, clearTimeout(){}, fetch:async()=>({ok:true,json:async()=>({esito:'ok'})})});
+    const fire = (name, event) => events[name].forEach(fn=>fn(event));
+    fire('click', {target: inside});
+    assert.equal(details.open, true);
+    fire('keydown', {key:'Escape'});
+    assert.equal(details.open, false);
+    assert.equal(focused, true);
+    details.open = true;
+    fire('click', {target: {}});
+    assert.equal(details.open, false);
 });

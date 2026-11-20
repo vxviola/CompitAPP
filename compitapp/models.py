@@ -1,5 +1,6 @@
 import sqlite3
 import os
+from math import isfinite
 
 DB_PATH = os.environ.get('DB_PATH', '/data/compitapp.db')
 
@@ -13,6 +14,7 @@ def get_db():
 def init_db():
     conn = get_db()
     _backup_prima_eventi(conn)
+    _backup_prima_voti(conn)
     c = conn.cursor()
 
     c.execute('''CREATE TABLE IF NOT EXISTS compiti (
@@ -109,10 +111,28 @@ def _backup_prima_eventi(conn):
     colonne = {r['name'] for r in conn.execute('PRAGMA table_info(compiti)')}
     if not colonne or 'argo_uid' in colonne or DB_PATH == ':memory:':
         return
-    destinazione = DB_PATH + '.prima-eventi.sqlite'
+    _copia_database(conn, '.prima-eventi.sqlite')
+
+
+def _backup_prima_voti(conn):
+    if DB_PATH == ':memory:':
+        return
+    colonne = {r['name'] for r in conn.execute('PRAGMA table_info(voti)')}
+    if 'argo_uid' not in colonne or conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='voti_alias'").fetchone():
+        return
+    if conn.execute('SELECT 1 FROM voti LIMIT 1').fetchone():
+        _copia_database(conn, '.prima-voti-2.4.11.sqlite')
+
+
+def _copia_database(conn, suffisso):
+    from tempfile import mkstemp
+    destinazione = DB_PATH + suffisso
     if os.path.exists(destinazione):
         return
-    temporaneo = destinazione + '.tmp'
+    fd, temporaneo = mkstemp(dir=os.path.dirname(os.path.abspath(destinazione)),
+                              prefix=os.path.basename(destinazione) + '.', suffix='.tmp')
+    os.close(fd)
     try:
         backup = sqlite3.connect(temporaneo)
         try:
@@ -148,6 +168,9 @@ def _migra_eventi(conn):
         studente TEXT NOT NULL, categoria TEXT NOT NULL, uid TEXT NOT NULL,
         versione TEXT, eliminato INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY(studente,categoria,uid))''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS voti_alias (
+        studente TEXT NOT NULL, alias TEXT NOT NULL, uid TEXT NOT NULL,
+        PRIMARY KEY(studente,alias))''')
     conn.execute('''CREATE TABLE IF NOT EXISTS registro_argo (
         studente TEXT NOT NULL, uid TEXT NOT NULL, data TEXT, ora INTEGER,
         materia TEXT, docente TEXT, PRIMARY KEY(studente,uid))''')
@@ -191,15 +214,13 @@ def _migra_bacheca(conn):
         conn.execute('ALTER TABLE bacheca_migrazione RENAME TO bacheca')
 
 
-def _num(v):
-    """Numero da un valore Argo (8.15, "8,15", "8.15"); None se assente, non numerico o 0."""
-    if v in (None, ''):
-        return None
+def voto_numerico(v):
+    """Restituisce il valore numerico positivo, oppure None per giudizi e segnaposto."""
     try:
-        n = round(float(str(v).replace(',', '.')), 2)
+        n = float(str(v).replace(',', '.'))
     except (TypeError, ValueError):
         return None
-    return n if n > 0 else None
+    return n if isfinite(n) and n > 0 else None
 
 
 def media_argo(conn, nome):
@@ -213,12 +234,44 @@ def media_argo(conn, nome):
         d = json.loads(r['valore'])
     except Exception:
         return None
-    materie = {m: _num(v) for m, v in (d.get('materie') or {}).items()}
-    materie = {m: v for m, v in materie.items() if v is not None}
-    generale = _num(d.get('generale'))
+    if not isinstance(d, dict):
+        return None
+    valori = d.get('materie')
+    materie = {m: voto_numerico(v) for m, v in valori.items()} if isinstance(valori, dict) else {}
+    materie = {m: round(v, 2) for m, v in materie.items() if v is not None}
+    generale = voto_numerico(d.get('generale'))
     if generale is None and not materie:
         return None
-    return {'generale': generale, 'materie': materie}
+    return {'generale': round(generale, 2) if generale is not None else None, 'materie': materie}
+
+
+def riepilogo_medie(conn, nome, righe=None):
+    """Stesse medie per dashboard, sensori e bot. Il conteggio si riferisce ai voti numerici locali."""
+    if righe is None:
+        righe = conn.execute('SELECT materia, voto FROM voti WHERE studente=?', (nome,))
+    valori = []
+    per_materia = {}
+    for riga in righe:
+        numero = voto_numerico(riga['voto'])
+        if numero is not None:
+            valori.append(numero)
+            per_materia.setdefault(riga['materia'], []).append(numero)
+
+    ufficiali = media_argo(conn, nome) or {}
+    generale = ufficiali.get('generale')
+    materie_argo = ufficiali.get('materie') or {}
+    materie = {m: round(sum(v) / len(v), 2) for m, v in per_materia.items()}
+    materie.update(materie_argo)
+    if generale is None and valori:
+        generale = round(sum(valori) / len(valori), 2)
+    return {
+        'generale': generale,
+        'materie': materie,
+        'conteggi': {m: len(v) for m, v in per_materia.items()},
+        'generale_argo': ufficiali.get('generale') is not None,
+        'materie_argo': set(materie_argo),
+        'fonti_miste': bool(materie_argo and per_materia.keys() - materie_argo.keys()),
+    }
 
 
 def svuota_studente(conn, nome):
@@ -226,9 +279,9 @@ def svuota_studente(conn, nome):
     così al prossimo giro l'anno scolastico viene riletto da capo (senza notifiche)."""
     for t in ('compiti', 'voti', 'assenze', 'note_disciplinari', 'bacheca',
               'argomenti', 'promemoria', 'orario', 'lezioni_registro', 'argo_eventi', 'registro_argo',
-              'allegati_letti'):
+              'allegati_letti', 'voti_alias'):
         conn.execute(f'DELETE FROM {t} WHERE studente=?', (nome,))
-    conn.execute("DELETE FROM meta WHERE chiave LIKE ? OR chiave = ? OR chiave = ?",
-                 (f"storico:%:{nome}", f"media_argo:{nome}", f"sync_ui:{nome}"))
+    chiavi = [f'media_argo:{nome}', f'sync_ui:{nome}', f'storico:bacheca_allegati:{nome}']
     for categoria in ('compiti', 'voti', 'assenze', 'note', 'bacheca', 'argomenti', 'promemoria', 'registro'):
-        conn.execute('DELETE FROM meta WHERE chiave=?', (f'sync_eventi:v1:{categoria}:{nome}',))
+        chiavi.extend((f'storico:{categoria}:{nome}', f'sync_eventi:v1:{categoria}:{nome}'))
+    conn.executemany('DELETE FROM meta WHERE chiave=?', [(chiave,) for chiave in chiavi])

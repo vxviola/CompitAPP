@@ -9,9 +9,9 @@
     <script>try{var t=localStorage.getItem('compitapp-theme')||'system';document.documentElement.dataset.theme=t==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):t;}catch(e){}</script>
     <link rel="icon" type="image/png" href="{{ ui_asset('favicon-32x32.png') }}">
     <link rel="apple-touch-icon" href="{{ ui_asset('apple-touch-icon.png') }}">
-    <link rel="stylesheet" href="{{ ui_asset('dashboard.css') }}?v=247">
+    <link rel="stylesheet" href="{{ ui_asset('dashboard.css') }}?v=2411">
     <script>window.COMPITAPP={{ {'base': ui_base, 'studente': ui_studente, 'palette': ui_palette}|tojson }};</script>
-    <script src="{{ ui_asset('dashboard.js') }}?v=247" defer></script>
+    <script src="{{ ui_asset('dashboard.js') }}?v=2411" defer></script>
     <script src="{{ ui_asset('allegati.js') }}?v=240" defer></script>
     <script src="{{ ui_asset('funzioni.js') }}?v=245" defer></script>
 </head>
@@ -55,7 +55,7 @@
     </nav>
     <div class="nav-caption">Preferenze</div>
     <nav class="nav-list" aria-label="Preferenze">{{ nav_item('/configurazione', 'Impostazioni', 'settings', 'configurazione') }}</nav>
-    <div class="sidebar-foot">{{ icon('leaf', 'sm') }} <strong>Un piccolo aiuto, ogni giorno.</strong>Curato da vxviola · 2.4.7</div>
+    <div class="sidebar-foot">{{ icon('leaf', 'sm') }} <strong>Un piccolo aiuto, ogni giorno.</strong>Curato da vxviola · 2.4.11</div>
 </aside>
 
 <div class="app-main">
@@ -69,10 +69,19 @@
             {% else %}<a class="student-chip" href="{{ ui_link('/configurazione') }}">Configura uno studente</a>{% endfor %}
         </div>
         <div class="top-actions">
-            <div class="sync-info {{ 'is-error' if sync_stato.get('esito') == 'errore' else 'is-ok' if sync_stato.get('livello') == 'ok' else '' }}" id="sync-info" data-last-success="{{ sync_stato.get('ultimo_successo') or '' }}" aria-live="polite">
-                <span><i class="status-dot"></i><span id="sync-label">{{ ('Errore di accesso Argo' if sync_stato.get('motivo') == 'accesso' else 'Errore di sincronizzazione') if sync_stato.get('esito') == 'errore' else 'Sincronizzazione in corso' if sync_stato.get('in_corso') else 'Ultimo aggiornamento' if sync_stato.get('esito') == 'ok' else 'In attesa del primo controllo' }}</span></span>
-                <strong id="sync-time">{{ sync_etichetta or 'In attesa del primo controllo' }}</strong>
-            </div>
+            <details id="registro-status" class="registro-status">
+                <summary class="sync-info {{ 'is-error' if sync_stato.get('esito') == 'errore' else 'is-ok' if sync_stato.get('livello') == 'ok' else '' }}" id="sync-info" data-last-success="{{ sync_stato.get('ultimo_successo') or '' }}" aria-controls="sync-diagnostics">
+                    <i class="status-dot" aria-hidden="true"></i><span class="sr-only">Stato del registro. </span><span id="sync-short">{{ 'Errore registro' if sync_stato.get('esito') == 'errore' else 'In corso' if sync_stato.get('in_corso') else 'Registro OK' if sync_stato.get('livello') == 'ok' else 'In attesa' }}</span><span id="sync-label" class="sr-only" aria-live="polite">{{ sync_stato.get('messaggio') or 'In attesa del primo controllo' }}</span><span class="status-chevron" aria-hidden="true"></span>
+                </summary>
+                <section id="sync-diagnostics" class="sync-diagnostics {{ sync_stato.get('livello', 'attesa') }}" aria-labelledby="registro-status-title">
+                    <h2 id="registro-status-title">Stato del registro</h2>
+                    <strong id="diagnostic-message">{{ sync_stato.get('messaggio', 'In attesa del primo controllo') }}</strong>
+                    <p id="diagnostic-last">Ultima sincronizzazione riuscita: {{ sync_etichetta or 'non disponibile' }}</p>
+                    <p id="diagnostic-next">{% if sync_prossimo %}Prossimo controllo: {{ sync_prossimo }}{% else %}Nessun prossimo controllo confermato.{% endif %}</p>
+                    <p id="diagnostic-action">{{ sync_stato.get('azione', 'Verifica il collegamento nelle Impostazioni.') }}</p>
+                    <a class="text-link" href="{{ ui_link('/configurazione') }}">Apri le Impostazioni {{ icon('arrow','sm') }}</a>
+                </section>
+            </details>
             <button class="icon-btn" id="theme-toggle" aria-label="Cambia tema" title="Cambia tema">{{ icon('theme') }}</button>
             {% if ui_studente %}<select id="palette-select" class="palette-select" aria-label="Stile per {{ ui_studente }}" title="Colore dello studente">{% for value, label in [('salvia','Salvia'),('rosa','Rosa'),('azzurro','Azzurro')] %}<option value="{{ value }}" {% if ui_palette == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>{% endif %}
             <button class="sync-button" id="sync-button" data-sync-button onclick="syncNow()" {% if sync_stato.get('in_corso') %}disabled{% endif %}>{{ icon('refresh') }}<span>Aggiorna</span></button>

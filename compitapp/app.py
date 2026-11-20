@@ -4,7 +4,7 @@ import json
 from urllib.parse import urlencode
 from flask import Flask, render_template, jsonify, request, send_file, abort, send_from_directory
 from datetime import date, timedelta
-from models import init_db, get_db, media_argo
+from models import init_db, get_db, riepilogo_medie, voto_numerico
 from argo_client import get_studenti, link_allegato_bacheca
 from allegati import leggi_allegati, nome_download, scarica_file, tipo_file
 from orario_utils import GIORNI, anno_scolastico, stile_materia, etichetta_breve
@@ -20,6 +20,7 @@ app.register_blueprint(funzioni_bp)
 from ui import contesto_ui, data_leggibile, base_ingress
 import sync_state
 app.jinja_env.filters['data_breve'] = data_leggibile
+app.jinja_env.filters['voto_numerico'] = voto_numerico
 
 
 @app.context_processor
@@ -46,15 +47,6 @@ def _sel(studenti):
     scelto = request.args.get('studente')
     return scelto if scelto in nomi else (nomi[0] if nomi else '')
 
-def _media(voti):
-    valori = []
-    for v in voti:
-        try:
-            valori.append(float(str(v['voto']).replace(',','.')))
-        except Exception:
-            pass
-    return round(sum(valori)/len(valori), 2) if valori else None
-
 @app.route('/healthz')
 @app.route('/health')
 def healthz():
@@ -62,23 +54,17 @@ def healthz():
 
 @app.route('/debug-headers')
 def debug_headers():
-    headers = dict(request.headers)
-    env_keys = ['PATH_INFO', 'SCRIPT_NAME', 'HTTP_X_INGRESS_PATH', 
-                'HTTP_X_FORWARDED_PREFIX', 'HTTP_X_REAL_IP']
-    env_info = {k: request.environ.get(k, 'N/A') for k in env_keys}
+    # Per diagnosticare il reverse proxy basta conoscere quali prefissi ha inviato.
     return jsonify({
-        'headers': headers,
-        'environ': env_info,
-        'path': request.path,
-        'script_root': request.script_root,
-        'url': request.url
+        'ingress_path_presente': bool(request.headers.get('X-Ingress-Path')),
+        'forwarded_prefix_presente': bool(request.headers.get('X-Forwarded-Prefix')),
+        'script_root_presente': bool(request.script_root),
     })
 
 
 
 @app.route('/')
 def index():
-    print(f"[FLASK] PATH: {request.path} | SCRIPT_ROOT: {request.script_root} | FULL: {request.url}")
     studenti = get_studenti()
     sel = _sel(studenti)
     oggi = date.today().strftime('%Y-%m-%d')
@@ -88,23 +74,21 @@ def index():
     compiti_domani = conn.execute('SELECT * FROM compiti WHERE studente=? AND data=? ORDER BY materia', (sel, domani)).fetchall()
     prossimi       = conn.execute('SELECT * FROM compiti WHERE studente=? AND data>? ORDER BY data,materia LIMIT 30', (sel, domani)).fetchall()
     ultimi_voti    = conn.execute('SELECT * FROM voti WHERE studente=? ORDER BY data DESC, id DESC LIMIT 5', (sel,)).fetchall()
-    tutti_voti     = conn.execute('SELECT voto FROM voti WHERE studente=?', (sel,)).fetchall()
     bacheca        = conn.execute('SELECT * FROM bacheca WHERE studente=? ORDER BY data DESC,id DESC LIMIT 3', (sel,)).fetchall()
     promemoria     = conn.execute('SELECT * FROM promemoria WHERE studente=? AND data>=? ORDER BY data', (sel, oggi)).fetchall()
     assenze_tot    = conn.execute("SELECT COUNT(*) as n FROM assenze WHERE studente=? AND tipo='A'", (sel,)).fetchone()['n']
-    ma             = media_argo(conn, sel)
+    medie          = riepilogo_medie(conn, sel)
     orario_domani  = conn.execute('SELECT * FROM orario WHERE studente=? AND giorno=? ORDER BY ora',
                                  (sel, (date.today() + timedelta(days=1)).weekday())).fetchall()
     conn.close()
     bacheca = [dict(m, allegati=leggi_allegati(m['allegati'])) for m in bacheca]
-    tutti_voti     = [v for v in tutti_voti if str(v['voto']).strip() not in ('0', '0.0', '0,0', 'N', '')]
-    media          = ma['generale'] if ma and ma['generale'] is not None else _media(tutti_voti)
     return render_template('index.html',
         studenti=studenti, studente_sel=sel,
         compiti_oggi=compiti_oggi, compiti_domani=compiti_domani,
         prossimi=prossimi, ultimi_voti=ultimi_voti,
         bacheca=bacheca, promemoria=promemoria, assenze_mese=assenze_tot,
-        media=media, oggi=oggi, domani=domani, orario_domani=orario_domani,
+        media=medie['generale'], media_ufficiale=medie['generale_argo'],
+        oggi=oggi, domani=domani, orario_domani=orario_domani,
         soglia_voto=float(os.environ.get('SOGLIA_VOTO', 7))
     )
 
@@ -125,21 +109,11 @@ def voti():
     studenti = get_studenti()
     sel = _sel(studenti)
     conn = get_db()
-    tutti_voti = conn.execute('SELECT * FROM voti WHERE studente=? ORDER BY data DESC', (sel,)).fetchall()
-    ma = media_argo(conn, sel)
+    tutti_voti = conn.execute('SELECT * FROM voti WHERE studente=? ORDER BY data DESC, id DESC', (sel,)).fetchall()
+    medie = riepilogo_medie(conn, sel, tutti_voti)
     conn.close()
-    medie = {}
-    per_materia = {}
-    for v in tutti_voti:
-        try:
-            per_materia.setdefault(v['materia'], []).append(float(str(v['voto']).replace(',','.')))
-        except Exception:
-            pass
-    for m, vals in per_materia.items():
-        medie[m] = round(sum(vals)/len(vals), 2)
-    if ma and ma['materie']:
-        medie = dict(ma['materie'])
-    return render_template('voti.html', voti=tutti_voti, medie=medie,
+    return render_template('voti.html', voti=tutti_voti, medie=medie['materie'], medie_ufficiali=medie['materie_argo'],
+        fonti_miste=medie['fonti_miste'],
         soglia=float(os.environ.get('SOGLIA_VOTO', 7)),
         studenti=studenti, studente_sel=sel)
 
@@ -391,7 +365,7 @@ def api_reset_db():
     conn = None
     try:
         conn = get_db()
-        for tabella in ['compiti','voti','assenze','note_disciplinari','bacheca','argomenti','promemoria','orario','lezioni_registro','argo_eventi','registro_argo','allegati_letti']:
+        for tabella in ['compiti','voti','assenze','note_disciplinari','bacheca','argomenti','promemoria','orario','lezioni_registro','argo_eventi','registro_argo','allegati_letti','voti_alias']:
             conn.execute(f'DELETE FROM {tabella}')
         # senza questo, dopo lo svuotamento l'app rileggeva solo gli ultimi 7 giorni
         conn.execute("DELETE FROM meta WHERE chiave LIKE 'storico:%' OR chiave LIKE 'media_argo:%' OR chiave LIKE 'sync_ui:%'")
@@ -417,12 +391,17 @@ def api_stats():
     n_domani   = conn.execute('SELECT COUNT(*) as n FROM compiti WHERE studente=? AND data=?', (sel, domani)).fetchone()['n']
     tot_comp   = conn.execute('SELECT COUNT(*) as n FROM compiti WHERE studente=?', (sel,)).fetchone()['n']
     tot_voti   = conn.execute('SELECT COUNT(*) as n FROM voti WHERE studente=?', (sel,)).fetchone()['n']
+    gruppi_uguali = conn.execute('''SELECT COUNT(*) FROM (
+        SELECT 1 FROM voti WHERE studente=?
+        GROUP BY data, materia, voto, COALESCE(descrizione,'') HAVING COUNT(*) > 1
+    )''', (sel,)).fetchone()[0]
     tot_ass    = conn.execute('SELECT COUNT(*) as n FROM assenze WHERE studente=?', (sel,)).fetchone()['n']
     tot_bach   = conn.execute('SELECT COUNT(*) as n FROM bacheca WHERE studente=?', (sel,)).fetchone()['n']
     conn.close()
     return jsonify({
         'compiti_oggi': n_oggi, 'compiti_domani': n_domani,
         'totale_compiti': tot_comp, 'totale_voti': tot_voti,
+        'gruppi_voti_uguali': gruppi_uguali,
         'totale_assenze': tot_ass, 'totale_bacheca': tot_bach,
         'ultimo_sync': sync_state.leggi(sel).get('ultimo_successo') or 'In attesa del primo controllo completo'
     })

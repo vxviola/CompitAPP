@@ -14,6 +14,7 @@ import pytz
 import argo_client
 import sync_state
 from models import get_db
+from voti_duplicati import riconcilia_identita_voto, riconcilia_copia_anonima, separa_identita_voti
 
 TZ = pytz.timezone('Europe/Rome')
 CATEGORIE = ('compiti', 'voti', 'assenze', 'note', 'bacheca', 'argomenti', 'promemoria', 'registro')
@@ -53,7 +54,9 @@ def piano(conn, categoria, nome, ora):
     # Il primo passaggio della nuova versione rilegge lo storico senza notifiche.
     return {'dal': min(ultimo, ora) - timedelta(days=7) if ultimo else inizio_anno(ora),
             'silenzioso': ultimo is None, 'ora': ora,
-            'recupera_link': categoria == 'bacheca' and ultimo is not None and stato.get('link_bacheca') != 1}
+            'recupera_link': categoria == 'bacheca' and ultimo is not None and stato.get('link_bacheca') != 1,
+            'recupera_voti': categoria == 'voti' and ultimo is not None and stato.get('identita_voti') != 1
+                             and conn.execute('SELECT 1 FROM voti WHERE studente=? LIMIT 1', (nome,)).fetchone() is not None}
 
 
 def _lista(sezione, *chiavi):
@@ -106,11 +109,92 @@ def _data(valore):
         raise argo_client.ArgoSyncError('Data Argo non valida') from None
 
 
-def normalizza(categoria, sezione):
+def _evento_voto(r):
+    e = _base(r)
+    e['primario'] = _uid({'pk': r.get('pk')})
+    alias = {_uid({k: r[k]}) for k in ('pk', 'uid', 'pkVoto') if r.get(k) not in (None, '')}
+    if all(r.get(k) not in (None, '') for k in ('prgVoto', 'pkMateria', 'pkPeriodo')):
+        alias.add(_uid({k: r[k] for k in ('prgVoto', 'pkMateria', 'pkPeriodo')}))
+    e['alias'] = alias - {e['uid']}
+    if e['eliminato']:
+        return e
+    campi_voto = ('valore', 'decValore', 'decVoto', 'codVoto')
+    if not any(k in r for k in campi_voto):
+        raise argo_client.ArgoSyncError('Campo valutazione assente: dati locali conservati')
+    valore = argo_client._pick(r, *campi_voto)
+    if not argo_client._voto_valido(valore, verifica_formato=True):
+        e['eliminato'] = True
+        return e if e['uid'] else None
+    materia = argo_client._pick(r, 'desMateria', 'materia', 'descrizioneMateria')
+    if isinstance(materia, dict):
+        materia = argo_client._pick(materia, 'descrizione', 'desMateria', 'nome')
+    e['valori'] = {'data': _data(argo_client._pick(r, 'datGiorno', 'data', 'dataVoto')),
+                   'materia': _testo(materia), 'voto': str(valore),
+                   'descrizione': _testo(argo_client._pick(r, 'desCommento', 'commento', 'descrizione', 'desProva'))}
+    return e
+
+
+def _eventi_voti(sezione, storico):
+    # Famiglia WEB usa voti. votiGiornalieri è il formato precedente, non un secondo elenco da importare.
+    chiave = 'voti' if 'voti' in sezione else 'votiGiornalieri'
+    eventi = [e for r in _lista(sezione, chiave) if (e := _evento_voto(r)) is not None]
+    proprietari = {}
+    for e in eventi:
+        if e['uid']:
+            for k in {e['uid'], *e['alias']}:
+                proprietari.setdefault(k, set()).add(e['uid'])
+    for e in eventi:
+        e['alias'] = {a for a in e['alias'] if len(proprietari[a]) == 1}
+    if not storico or chiave != 'voti' or not isinstance(sezione.get('votiGiornalieri'), list):
+        return eventi
+
+    # Solo lo storico di entrambi gli elenchi documenta la copia anonima importata dalle vecchie release.
+    secondari = []
+    for r in sezione['votiGiornalieri']:
+        if not isinstance(r, dict):
+            return eventi
+        try:
+            copia = _evento_voto(r)
+        except argo_client.ArgoSyncError:
+            return eventi
+        if copia:
+            secondari.append(copia)
+
+    def firma(e):
+        return tuple(e['valori'][k] for k in SPEC['voti'][1])
+    conteggi = Counter(firma(e) for e in eventi if not e['eliminato'])
+    frequenze = Counter(firma(e) for e in secondari if not e['eliminato'])
+    anonimi = {firma(e) for e in secondari if not e['uid'] and not e['eliminato']}
+    collegati = {}
+    for copia in secondari:
+        if not copia['uid']:
+            continue
+        identificativi = {copia['uid'], *copia['alias']}
+        comuni = set().union(*(proprietari.get(k, ()) for k in identificativi))
+        if len(comuni) == 1:
+            for k in identificativi:
+                collegati.setdefault(k, set()).update(comuni)
+    alias_storici = {}
+    for k, uids in collegati.items():
+        if len(uids) == 1:
+            uid = next(iter(uids))
+            if k != uid:
+                alias_storici.setdefault(uid, set()).add(k)
+    for e in eventi:
+        e['alias'].update(alias_storici.get(e['uid'], ()))
+        if e['uid'] and not e['eliminato']:
+            f = firma(e)
+            e['copia_anonima'] = f in anonimi and conteggi[f] == frequenze[f] == 1
+    return eventi
+
+
+def normalizza(categoria, sezione, storico_voti=False):
+    if categoria == 'voti':
+        return _eventi_voti(sezione, storico_voti)
     if categoria in ('compiti', 'registro') or (categoria == 'argomenti' and 'argomentiLezione' not in sezione):
         righe = _lista(sezione, 'registro')
     else:
-        chiavi = {'voti': ('voti', 'votiGiornalieri'), 'assenze': ('appello', 'assenze'),
+        chiavi = {'assenze': (argo_client.chiave_appello(sezione),),
                   'note': ('noteDisciplinari',), 'bacheca': ('bacheca', 'bachecaAlunno'),
                   'argomenti': ('argomentiLezione',), 'promemoria': ('promemoria',)}[categoria]
         righe = _lista(sezione, *chiavi)
@@ -141,19 +225,7 @@ def normalizza(categoria, sezione):
         if e['eliminato']:
             eventi.append(e)
             continue
-        if categoria == 'voti':
-            valore = pick('valore', 'decValore', 'decVoto', 'codVoto')
-            if not argo_client._voto_valido(valore):
-                if e['uid']:
-                    e['eliminato'] = True
-                    eventi.append(e)
-                continue
-            materia = pick('desMateria', 'materia', 'descrizioneMateria')
-            if isinstance(materia, dict):
-                materia = argo_client._pick(materia, 'descrizione', 'desMateria', 'nome')
-            e['valori'] = {'data': _data(pick('datGiorno', 'data', 'dataVoto')), 'materia': _testo(materia),
-                           'voto': str(valore), 'descrizione': _testo(pick('desCommento', 'commento', 'descrizione', 'desProva'))}
-        elif categoria == 'assenze':
+        if categoria == 'assenze':
             e['valori'] = {'data': _data(pick('data', 'datAssenza')), 'tipo': _testo(pick('codEvento', default='A')),
                            'descrizione': _testo(pick('descrizione', 'desAssenza')),
                            'giustificata': int(argo_client._bool_arg(pick('giustificata', 'flgGiustificata', default='N')))}
@@ -223,6 +295,18 @@ def _chiave_replay_bacheca(evento):
         return evento['uid']
     valori = evento['valori']
     return tuple(valori[k] for k in ('data', 'titolo', 'testo', 'mittente', 'allegati'))
+
+
+def _riconcilia_voti(conn, nome, eventi):
+    primari = {e['primario'] for e in eventi if e['primario'] and not e['eliminato']}
+    separa_identita_voti(conn, nome, primari)
+    for e in eventi:
+        if e['alias']:
+            riconcilia_identita_voto(conn, nome, e['uid'], e['alias'], primari)
+    for e in eventi:
+        e['uid'] = riconcilia_identita_voto(conn, nome, e['uid'])
+        if e.get('copia_anonima'):
+            riconcilia_copia_anonima(conn, nome, e['uid'], e['valori'])
 
 
 def _applica_record_batch(conn, categoria, nome, eventi):
@@ -438,22 +522,43 @@ def sincronizza(studenti, categorie=CATEGORIE):
             sync_state.errore(nome, motivo)
             print(f'[SYNC] categoria={motivo}; dati e cursori conservati')
             continue
+        risposte = {dal: sezione}
+
+        def sezione_dal(inizio):
+            if inizio not in risposte:
+                risposte[inizio] = argo_client.dashboard_sync(studente, inizio)
+            return risposte[inizio]
+
         for categoria in categorie:
             conn = None
             try:
                 piano_categoria = piani[categoria]
-                eventi = normalizza(categoria, sezione)
+                dati_categoria = sezione
+                dal_categoria = dal
+                if categoria == 'voti' and not piano_categoria['silenzioso'] and dal != piano_categoria['dal']:
+                    dal_categoria = piano_categoria['dal']
+                    dati_categoria = sezione_dal(dal_categoria)
+                eventi = normalizza(categoria, dati_categoria, storico_voti=dal_categoria <= inizio_anno(ora))
                 eventi_storici = []
+                identita_storiche = []
+                if piano_categoria['recupera_voti'] and dal_categoria > inizio_anno(ora):
+                    # Lo storico fornisce le prove per riparare righe già salvate.
+                    # Inserimenti e notifiche restano quelli dell'intervallo ordinario.
+                    identita_storiche = normalizza('voti', sezione_dal(inizio_anno(ora)), storico_voti=True)
                 if piano_categoria['recupera_link'] and not piano_categoria['silenzioso']:
                     # L'intervallo incrementale conserva le notifiche del ciclo normale.
                     # Lo storico della sola bacheca reintegra i link dei vecchi avvisi in silenzio.
                     if dal != piano_categoria['dal']:
-                        delta = argo_client.dashboard_sync(studente, piano_categoria['dal'])
+                        delta = sezione_dal(piano_categoria['dal'])
                         eventi = normalizza(categoria, delta)
-                    storico = sezione if dal <= inizio_anno(ora) else argo_client.dashboard_sync(studente, inizio_anno(ora))
+                    storico = sezione if dal <= inizio_anno(ora) else sezione_dal(inizio_anno(ora))
                     nel_delta = {_chiave_replay_bacheca(e) for e in eventi}
                     eventi_storici = [e for e in normalizza(categoria, storico) if _chiave_replay_bacheca(e) not in nel_delta]
                 conn = get_db()
+                if categoria == 'voti':
+                    conn.execute('BEGIN IMMEDIATE')
+                    _riconcilia_voti(conn, nome, identita_storiche)
+                    _riconcilia_voti(conn, nome, eventi)
                 nuovi = []
                 if categoria == 'compiti':
                     nuovi = _compiti(conn, nome, eventi)
@@ -466,6 +571,8 @@ def sincronizza(studenti, categorie=CATEGORIE):
                 stato = {'ultimo': ora.isoformat(), 'inizio': inizio_anno(ora).isoformat(), 'completo': True}
                 if categoria == 'bacheca':
                     stato['link_bacheca'] = 1
+                if categoria == 'voti':
+                    stato['identita_voti'] = 1
                 conn.execute('INSERT OR REPLACE INTO meta(chiave,valore) VALUES (?,?)',
                              (_chiave(categoria, nome), json.dumps(stato)))
                 # Compatibilità con versioni precedenti e diagnostica esistente.
@@ -473,11 +580,11 @@ def sincronizza(studenti, categorie=CATEGORIE):
                 if categoria == 'bacheca':
                     conn.execute("INSERT OR REPLACE INTO meta(chiave,valore) VALUES (?, '1')", (f'storico:bacheca_allegati:{nome}',))
                 if categoria == 'voti':
-                    medie = argo_client.medie_da_sezione(sezione)
+                    medie = argo_client.medie_da_sezione(dati_categoria)
                     if medie:
                         conn.execute('INSERT OR REPLACE INTO meta(chiave,valore) VALUES (?,?)',
                                      (f'media_argo:{nome}', json.dumps(medie)))
-                    elif eventi or 'mediaGenerale' in sezione or 'mediaMaterie' in sezione:
+                    elif eventi or 'mediaGenerale' in dati_categoria or 'mediaMaterie' in dati_categoria:
                         conn.execute('DELETE FROM meta WHERE chiave=?', (f'media_argo:{nome}',))
                 conn.commit()
                 conn.close(); conn = None

@@ -297,6 +297,7 @@ async function loadStats() {
                 <div>⭐ Voti: <b>${d.totale_voti||0}</b></div>
                 <div>🏠 Assenze: <b>${d.totale_assenze||0}</b></div>
                 <div>📢 Bacheca: <b>${d.totale_bacheca||0}</b></div>
+                ${d.gruppi_voti_uguali > 0 ? `<div style="grid-column:1/-1">Gruppi di voti con data, materia, valore e descrizione identici: <b>${Number(d.gruppi_voti_uguali)}</b>. Possono essere prove distinte. Confrontali con il registro Argo.</div>` : ''}
                 <div style="grid-column:1/-1">🔄 Ultimo sync: <b>${d.ultimo_sync||'Mai'}</b></div>
             </div>`;
     } catch(e) { document.getElementById('stats-content').innerHTML = 'Errore caricamento stats'; }

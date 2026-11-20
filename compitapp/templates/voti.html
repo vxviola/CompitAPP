@@ -1,17 +1,17 @@
 {% extends "base.html" %}
-{% from "ui_macros.html" import icon with context %}
+{% from "ui_macros.html" import icon, voto_chip with context %}
 {% block content %}
 <div class="container">
     <div class="dashboard-columns">
         <section class="card"><div class="card-header">{{ icon('chart') }}<h2 class="card-title">Tutti i voti</h2><span class="badge badge-primary">{{ voti|length }}</span></div>
-        {% for v in voti %}{% set n=v['voto']|replace(',','.')|float(-1) %}
-        <article class="grades-row"><div class="voto-chip {{ 'voto-ok' if n >= soglia else 'voto-warn' if n >= soglia-1 else 'voto-bad' }}">{{ v['voto'] }}</div><div><strong>{{ v['materia']|capitalize }}</strong><span>{{ v['data']|data_breve }}{% if v['descrizione'] %} · {{ v['descrizione'] }}{% endif %}</span></div></article>
+        {% for v in voti %}
+        <article class="grades-row">{{ voto_chip(v['voto'], soglia) }}<div><strong>{{ v['materia']|capitalize }}</strong><span>{{ v['data']|data_breve }}{% if v['descrizione'] %} · {{ v['descrizione'] }}{% endif %}</span></div></article>
         {% else %}<div class="empty-state">{{ icon('leaf') }}<strong>Ogni percorso ha il suo inizio.</strong>Nessun voto disponibile nel registro.</div>{% endfor %}
         </section>
-        <section class="card"><div class="card-header"><h2 class="card-title">Materia per materia</h2></div><p class="subtle" style="margin-bottom:16px">Le medie disponibili dal registro scolastico.</p>
+        <section class="card"><div class="card-header"><h2 class="card-title">Materia per materia</h2></div>{% if medie and not fonti_miste %}<p class="subtle" style="margin-bottom:16px">{{ 'Medie comunicate da Argo.' if medie_ufficiali else 'Medie calcolate dai voti numerici in archivio.' }}</p>{% endif %}
         {% for materia, media in medie.items()|sort(attribute='0') %}
-        <div class="subject-average"><div><strong>{{ materia|capitalize }}</strong><span>{{ ('%.2f'|format(media))|replace('.',',') }}</span></div><div class="average-track"><div style="width:{{ [(media/10*100)|int,100]|min }}%"></div></div></div>
-        {% else %}<div class="empty-state">Le medie compariranno quando saranno disponibili valutazioni.</div>{% endfor %}
+        <div class="subject-average"><div><strong>{{ materia|capitalize }}</strong><span>{{ ('%.2f'|format(media))|replace('.',',') }}</span></div>{% if fonti_miste %}<small>{{ 'Media Argo' if materia in medie_ufficiali else 'Dai voti numerici in archivio' }}</small>{% endif %}<div class="average-track"><div style="width:{{ [(media/10*100)|int,100]|min }}%"></div></div></div>
+        {% else %}<div class="empty-state">Nessuna media numerica disponibile.</div>{% endfor %}
         </section>
     </div>
 </div>

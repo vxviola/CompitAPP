@@ -35,8 +35,7 @@ if os.path.exists(config_path):
     os.environ['REMINDER_TESTO_CHIUSURA'] = str(cfg.get('reminder_testo_chiusura', '') or '')
     os.environ['STUDENTI']          = json.dumps(cfg.get('studenti', []))
     os.environ['ANNO_SCOLASTICO']   = str(cfg.get('anno_scolastico', '2025/2026'))
-    print(f"[CONFIG] ✅ Token: {os.environ['TELEGRAM_TOKEN'][:15]}...")
-    print(f"[CONFIG] Chat IDs: {os.environ['TELEGRAM_CHAT_IDS']}")
+    print("[CONFIG] Bot Telegram configurato" if os.environ['TELEGRAM_TOKEN'] else "[CONFIG] Bot Telegram disattivato")
 
 def installa_card():
     """Copia la card Lovelace in /config/www/compitapp/ (si vede come /local/compitapp/compitapp-card.js)"""
@@ -51,7 +50,7 @@ def installa_card():
         nuova_destinazione = '/config/www/uniscuola'
         os.makedirs(nuova_destinazione, exist_ok=True)
         shutil.copyfile(sorgente, os.path.join(nuova_destinazione, 'uniscuola-card.js'))
-        print("[CARD] ✅ UniScuola installata: /local/uniscuola/uniscuola-card.js?v=247 (modulo JavaScript). Compatibilità con la card precedente mantenuta.")
+        print("[CARD] ✅ UniScuola installata: /local/uniscuola/uniscuola-card.js?v=2411 (modulo JavaScript). Compatibilità con la card precedente mantenuta.")
     except Exception as e:
         print(f"[CARD] Non riesco a installare la card ({e}). Puoi copiarla a mano da GitHub: compitapp/card/compitapp-card.js")
 

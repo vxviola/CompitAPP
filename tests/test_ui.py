@@ -46,6 +46,16 @@ class DashboardTest(DatabaseFixture, unittest.TestCase):
             self.assertEqual(self.client.post('/api/palette?studente=Luca', json=payload).status_code, 400)
         self.assertEqual(self.client.post('/api/palette?studente=inesistente', json={'palette': 'rosa'}).status_code, 404)
 
+    def test_orari_registro_in_italiano_prima_del_polling(self):
+        stato = {'esito': 'ok', 'livello': 'ok', 'ultimo_successo': '2020-07-01T23:04:00+00:00',
+                 'prossimo_tentativo': '2099-11-01T23:04:00+00:00'}
+        with patch('app.sync_state.leggi', return_value=stato):
+            html = self.client.get('/').text
+            self.assertIn('Ultima sincronizzazione riuscita: 2 lug, 01:04', html)
+            self.assertIn('Prossimo controllo: 2 nov, 00:04', html)
+            stato['prossimo_tentativo'] = '2020-11-01T23:04:00+00:00'
+            self.assertIn('Nessun prossimo controllo confermato.', self.client.get('/').text)
+
     def test_sensori_mantengono_entita_e_pubblicano_nome_e_palette(self):
         import notifier
         from preferenze import salva_palette
@@ -66,6 +76,13 @@ class DashboardTest(DatabaseFixture, unittest.TestCase):
                     r = self.client.get(prefix + page, query_string={'studente': 'Luca'})
                     self.assertEqual(r.status_code, 200)
                     self.assertIn('Luca', r.text)
+                    header = r.text.split('<header class="topbar">', 1)[1].split('</header>', 1)[0]
+                    self.assertEqual(r.text.count('id="sync-diagnostics"'), 1)
+                    self.assertIn('<details id="registro-status" class="registro-status">', header)
+                    self.assertIn('aria-controls="sync-diagnostics"', header)
+                    self.assertIn('id="registro-status-title">Stato del registro', header)
+                    self.assertIn(prefix + '/configurazione?studente=Luca', unescape(header))
+                    self.assertNotIn('id="sync-diagnostics"', r.text.split('<main', 1)[1])
                     self.assertIn(prefix + '/static/dashboard.css', r.text)
                     self.assertIn(prefix + '/bacheca?studente=Luca', unescape(r.text))
                     self.assertNotIn('fonts.googleapis.com', r.text)

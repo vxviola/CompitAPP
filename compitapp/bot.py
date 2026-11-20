@@ -3,6 +3,7 @@ import threading
 import requests
 import time
 from datetime import date, timedelta
+from html import escape
 
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN', '')
 
@@ -236,45 +237,40 @@ def _cmd_orario(chat_id, args):
 
 def _cmd_voti(chat_id):
     try:
-        from models import get_db
+        from models import get_db, riepilogo_medie, voto_numerico
         conn = get_db()
         nomi = _studenti_bot()
         testi = []
         for nome in nomi:
             voti = conn.execute(
-                'SELECT materia, voto, data FROM voti WHERE studente=? ORDER BY data DESC, id DESC LIMIT 15', (nome,)
+                'SELECT materia, voto, data FROM voti WHERE studente=? ORDER BY data DESC, id DESC LIMIT 8', (nome,)
             ).fetchall()
-            testi.append((nome, voti))
+            testi.append((nome, voti, riepilogo_medie(conn, nome)))
         conn.close()
 
         soglia = float(os.environ.get('SOGLIA_VOTO', 7))
-        for nome, voti in testi:
-            titolo = f"⭐ <b>Voti di {nome}</b>" if nome != 'default' else "⭐ <b>Voti</b>"
-            if not voti:
+        for nome, voti, medie in testi:
+            titolo = f"⭐ <b>Voti di {escape(nome)}</b>" if nome != 'default' else "⭐ <b>Voti</b>"
+            if not voti and not medie['materie']:
                 send_message(chat_id, f"{titolo}\n\n📊 Nessun voto registrato.")
                 continue
 
-            per_materia = {}
-            for v in voti:
-                try:
-                    per_materia.setdefault(v['materia'], []).append(float(str(v['voto']).replace(',','.')))
-                except Exception:
-                    pass
-
-            msg = f"{titolo}\n\n<b>Media per materia:</b>\n"
-            for mat, vals in sorted(per_materia.items()):
-                media = round(sum(vals)/len(vals), 1)
+            msg = titolo + '\n'
+            if medie['materie']:
+                fonte = 'per materia' if medie['fonti_miste'] else ('di Argo' if medie['materie_argo'] else 'dei voti numerici in archivio')
+                msg += f"\n<b>Medie {fonte}</b>\n"
+            for mat, media in sorted(medie['materie'].items()):
                 em = '🟢' if media >= soglia else ('🟡' if media >= soglia-1 else '🔴')
-                msg += f"{em} <b>{mat}</b>: {media}\n"
+                valore = f'{media:.2f}'.replace('.', ',')
+                fonte_materia = (' (Argo)' if mat in medie['materie_argo'] else ' (UniScuola)') if medie['fonti_miste'] else ''
+                msg += f"{em} <b>{escape(mat)}</b>: {valore}{fonte_materia}\n"
 
-            msg += "\n<b>Ultimi voti:</b>\n"
-            for v in voti[:8]:
-                try:
-                    vn = float(str(v['voto']).replace(',','.'))
-                    em = '🟢' if vn >= soglia else ('🟡' if vn >= soglia-1 else '🔴')
-                except Exception:
-                    em = '📊'
-                msg += f"{em} {v['materia']}: <b>{v['voto']}</b> <i>({v['data']})</i>\n"
+            if voti:
+                msg += "\n<b>Ultimi voti:</b>\n"
+            for v in voti:
+                vn = voto_numerico(v['voto'])
+                em = '📊' if vn is None else ('🟢' if vn >= soglia else '🟡' if vn >= soglia-1 else '🔴')
+                msg += f"{em} {escape(v['materia'])}: <b>{escape(v['voto'])}</b> <i>({escape(v['data'])})</i>\n"
             send_message(chat_id, msg)
 
     except Exception as e:
@@ -291,7 +287,7 @@ def send_message(chat_id, testo):
             timeout=10
         )
     except Exception as e:
-        print(f"[BOT] Errore send: {e}")
+        print(f"[BOT] Invio non riuscito ({type(e).__name__})")
 
 def set_comandi_bot():
     """Imposta i comandi del bot automaticamente all'avvio"""
@@ -314,9 +310,9 @@ def set_comandi_bot():
         if resp.status_code == 200:
             print("[BOT] ✅ Comandi impostati automaticamente")
         else:
-            print(f"[BOT] ⚠️ Errore impostazione comandi: {resp.text}")
+            print(f"[BOT] Configurazione comandi non riuscita (HTTP {resp.status_code})")
     except Exception as e:
-        print(f"[BOT] Errore setMyCommands: {e}")
+        print(f"[BOT] Configurazione comandi non riuscita ({type(e).__name__})")
 
 def polling_loop():
     if not TELEGRAM_TOKEN:
@@ -336,7 +332,7 @@ def polling_loop():
                     offset = update['update_id'] + 1
                     handle_update(update)
         except Exception as e:
-            print(f"[BOT] Errore polling: {e}")
+            print(f"[BOT] Polling non riuscito ({type(e).__name__})")
             time.sleep(5)
 
 def avvia_bot():
