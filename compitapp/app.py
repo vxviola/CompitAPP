@@ -15,7 +15,9 @@ from bot import avvia_bot
 
 app = Flask(__name__)
 from funzioni import bp as funzioni_bp
+from revisione_voti_web import bp as revisione_voti_bp
 app.register_blueprint(funzioni_bp)
+app.register_blueprint(revisione_voti_bp)
 
 from ui import contesto_ui, data_leggibile, base_ingress
 import sync_state
@@ -73,7 +75,7 @@ def index():
     compiti_oggi   = conn.execute('SELECT * FROM compiti WHERE studente=? AND data=? ORDER BY materia', (sel, oggi)).fetchall()
     compiti_domani = conn.execute('SELECT * FROM compiti WHERE studente=? AND data=? ORDER BY materia', (sel, domani)).fetchall()
     prossimi       = conn.execute('SELECT * FROM compiti WHERE studente=? AND data>? ORDER BY data,materia LIMIT 30', (sel, domani)).fetchall()
-    ultimi_voti    = conn.execute('SELECT * FROM voti WHERE studente=? ORDER BY data DESC, id DESC LIMIT 5', (sel,)).fetchall()
+    ultimi_voti    = conn.execute('SELECT * FROM voti_visibili WHERE studente=? ORDER BY data DESC, id DESC LIMIT 5', (sel,)).fetchall()
     bacheca        = conn.execute('SELECT * FROM bacheca WHERE studente=? ORDER BY data DESC,id DESC LIMIT 3', (sel,)).fetchall()
     promemoria     = conn.execute('SELECT * FROM promemoria WHERE studente=? AND data>=? ORDER BY data', (sel, oggi)).fetchall()
     assenze_tot    = conn.execute("SELECT COUNT(*) as n FROM assenze WHERE studente=? AND tipo='A'", (sel,)).fetchone()['n']
@@ -109,7 +111,7 @@ def voti():
     studenti = get_studenti()
     sel = _sel(studenti)
     conn = get_db()
-    tutti_voti = conn.execute('SELECT * FROM voti WHERE studente=? ORDER BY data DESC, id DESC', (sel,)).fetchall()
+    tutti_voti = conn.execute('SELECT * FROM voti_visibili WHERE studente=? ORDER BY data DESC, id DESC', (sel,)).fetchall()
     medie = riepilogo_medie(conn, sel, tutti_voti)
     conn.close()
     return render_template('voti.html', voti=tutti_voti, medie=medie['materie'], medie_ufficiali=medie['materie_argo'],
@@ -365,7 +367,7 @@ def api_reset_db():
     conn = None
     try:
         conn = get_db()
-        for tabella in ['compiti','voti','assenze','note_disciplinari','bacheca','argomenti','promemoria','orario','lezioni_registro','argo_eventi','registro_argo','allegati_letti','voti_alias']:
+        for tabella in ['compiti','voti','assenze','note_disciplinari','bacheca','argomenti','promemoria','orario','lezioni_registro','argo_eventi','registro_argo','allegati_letti','voti_alias','voti_esclusi']:
             conn.execute(f'DELETE FROM {tabella}')
         # senza questo, dopo lo svuotamento l'app rileggeva solo gli ultimi 7 giorni
         conn.execute("DELETE FROM meta WHERE chiave LIKE 'storico:%' OR chiave LIKE 'media_argo:%' OR chiave LIKE 'sync_ui:%'")
@@ -390,9 +392,9 @@ def api_stats():
     n_oggi     = conn.execute('SELECT COUNT(*) as n FROM compiti WHERE studente=? AND data=?', (sel, oggi)).fetchone()['n']
     n_domani   = conn.execute('SELECT COUNT(*) as n FROM compiti WHERE studente=? AND data=?', (sel, domani)).fetchone()['n']
     tot_comp   = conn.execute('SELECT COUNT(*) as n FROM compiti WHERE studente=?', (sel,)).fetchone()['n']
-    tot_voti   = conn.execute('SELECT COUNT(*) as n FROM voti WHERE studente=?', (sel,)).fetchone()['n']
+    tot_voti   = conn.execute('SELECT COUNT(*) as n FROM voti_visibili WHERE studente=?', (sel,)).fetchone()['n']
     gruppi_uguali = conn.execute('''SELECT COUNT(*) FROM (
-        SELECT 1 FROM voti WHERE studente=?
+        SELECT 1 FROM voti_visibili WHERE studente=?
         GROUP BY data, materia, voto, COALESCE(descrizione,'') HAVING COUNT(*) > 1
     )''', (sel,)).fetchone()[0]
     tot_ass    = conn.execute('SELECT COUNT(*) as n FROM assenze WHERE studente=?', (sel,)).fetchone()['n']

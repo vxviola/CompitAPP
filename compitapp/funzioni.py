@@ -174,7 +174,7 @@ def ricerca(prefix=None):
     q = request.args.get('q', '').strip()[:200]
     risultati = []
     sezioni = [('compiti','Compiti',('materia','testo'),'/calendario'),
-               ('voti','Voti',('materia','voto','descrizione'),'/voti'),
+               ('voti_visibili','Voti',('materia','voto','descrizione'),'/voti'),
                ('argomenti','Lezioni',('materia','argomento','attivita'),'/argomenti'),
                ('bacheca','Comunicazioni e documenti',('titolo','testo','mittente','allegati'),'/bacheca'),
                ('promemoria','Promemoria',('testo','docente'),'/')]

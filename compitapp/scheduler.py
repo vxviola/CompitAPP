@@ -146,7 +146,7 @@ def _dettagli_sensori(conn, nome, oggi, domani, medie):
             'SELECT materia, testo, completato FROM compiti WHERE studente=? AND data=? ORDER BY materia', (nome, giorno))]
     voti = [{'data': r['data'], 'materia': r['materia'], 'voto': r['voto'], 'descrizione': _taglia(r['descrizione'], 150)}
             for r in conn.execute(
-                "SELECT data, materia, voto, descrizione FROM voti WHERE studente=? "
+                "SELECT data, materia, voto, descrizione FROM voti_visibili WHERE studente=? "
                 "AND voto NOT IN ('0','0.0','0,0','N','') ORDER BY data DESC, id DESC LIMIT 15", (nome,))]
     assenze = [{'data': r['data'], 'tipo': r['tipo'], 'descrizione': _taglia(r['descrizione'], 150),
                 'giustificata': bool(r['giustificata'])} for r in conn.execute(
@@ -167,7 +167,7 @@ def _aggiorna_sensori(nome):
         n_domani = conn.execute('SELECT COUNT(*) as n FROM compiti WHERE studente=? AND data=?', (nome, domani)).fetchone()['n']
         n_assenze = conn.execute('SELECT COUNT(*) as n FROM assenze WHERE studente=?', (nome,)).fetchone()['n']
         n_bacheca = conn.execute('SELECT COUNT(*) as n FROM bacheca WHERE studente=? AND data>=?', (nome, (date.today() - timedelta(days=30)).strftime('%Y-%m-%d'))).fetchone()['n']
-        ultimo_voto = conn.execute("SELECT voto, materia FROM voti WHERE studente=? AND voto NOT IN ('0','0.0','0,0','N','') ORDER BY data DESC, id DESC LIMIT 1", (nome,)).fetchone()
+        ultimo_voto = conn.execute("SELECT voto, materia FROM voti_visibili WHERE studente=? AND voto NOT IN ('0','0.0','0,0','N','') ORDER BY data DESC, id DESC LIMIT 1", (nome,)).fetchone()
         medie = riepilogo_medie(conn, nome)
         materie = [{'materia': m, 'media': v, 'n': medie['conteggi'].get(m, 0),
                     'fonte': 'Argo' if m in medie['materie_argo'] else 'UniScuola'}

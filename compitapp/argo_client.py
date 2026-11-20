@@ -503,16 +503,45 @@ class ArgoSyncError(Exception):
         self.categoria = categoria
 
 
-def dashboard_sync(studente, dal):
+def _headers_sessione_attiva(studente):
+    """Legge il profilo già selezionato senza avviare login, rinnovi o cambi di archivio."""
+    nome = studente['nome']
+    with _sessione_lock:
+        session = _sessions.get(nome)
+        if session is None:
+            raise ArgoSyncError('Sessione non disponibile per il confronto', 'accesso')
+        try:
+            profili = session._argo_profiles
+            indice = int(studente.get('alunno') or 1)
+            if not 1 <= indice <= len(profili):
+                raise ValueError
+            headers = dict(session._ArgoFamiglia__headers)
+            token = profili[indice - 1]['token']
+            durata = float(session._ArgoFamiglia__login_data.get('expires_in') or 3600)
+            if studente.get('accesso') == 'spid':
+                durata = min(durata, SPID_ETA_MAX)
+            if (not token or headers.get('x-auth-token') != token
+                    or not 0 <= time.time() - _sessioni_creata[nome] < durata):
+                raise ValueError
+        except (KeyError, AttributeError, TypeError, ValueError):
+            raise ArgoSyncError('Sessione o profilo da aggiornare', 'accesso') from None
+        return headers
+
+
+def dashboard_sync(studente, dal, *, solo_sessione_attiva=False):
     """Delta richiesto da una data precisa. Nessun ripiego sulla sola giornata corrente."""
     nome = studente.get('nome', 'default')
     for tentativo in range(2):
-        session = get_session(studente)
-        if session is None:
-            raise ArgoSyncError('Sessione Argo non disponibile', _session_errors.get(nome, 'accesso'))
+        if solo_sessione_attiva:
+            headers = _headers_sessione_attiva(studente)
+        else:
+            session = get_session(studente)
+            if session is None:
+                raise ArgoSyncError('Sessione Argo non disponibile', _session_errors.get(nome, 'accesso'))
+            headers = session._ArgoFamiglia__headers
         try:
             risposta = requests.post(ENDPOINT + 'dashboard/dashboard',
-                                     headers=session._ArgoFamiglia__headers,
+                                     headers=headers,
                                      json=dashboard_body(dal.strftime('%Y-%m-%d %H:%M:%S')),
                                      timeout=(10, 60), allow_redirects=False)
         except requests.RequestException:
@@ -521,7 +550,7 @@ def dashboard_sync(studente, dal):
         # Only HTTP 401 proves failed authentication. 403 is not a login trigger.
         if status == 401:
             # Preserve the existing SPID refresh lifecycle; recovery here is password-only.
-            if studente.get('accesso') == 'spid':
+            if solo_sessione_attiva or studente.get('accesso') == 'spid':
                 raise ArgoSyncError('Accesso Argo rifiutato', 'accesso')
             with _sessione_lock:
                 if _sessions.get(nome) is session:
@@ -536,6 +565,8 @@ def dashboard_sync(studente, dal):
             raise ArgoSyncError('Limite richieste Argo', 'limite')
         if status >= 500:
             raise ArgoSyncError('Servizio Argo non disponibile', 'servizio')
+        if solo_sessione_attiva and status != 200:
+            raise ArgoSyncError('Risposta al confronto non verificabile')
         try:
             risposta.raise_for_status()
             dati = risposta.json()
@@ -546,7 +577,10 @@ def dashboard_sync(studente, dal):
             or not isinstance(dati.get('data'), dict)
             or not isinstance(dati['data'].get('dati'), list) or not dati['data']['dati']):
         raise ArgoSyncError('Risposta dashboard incompleta o rifiutata')
-    if any(dati.get(k) is True or dati['data'].get(k) is True for k in ('hasMore', 'has_more', 'parziale')):
+    def parziale(obj):
+        return any(str(obj.get(k) or '').strip().lower() not in ('', 'false', '0', 'n', 'no')
+                   for k in ('hasMore', 'has_more', 'parziale'))
+    if parziale(dati) or parziale(dati['data']):
         raise ArgoSyncError('Risposta parziale: lo storico rimane da completare')
     sezioni = dati['data']['dati']
     if not all(isinstance(s, dict) for s in sezioni):
@@ -561,7 +595,7 @@ def dashboard_sync(studente, dal):
         sezioni = [sezioni[indice - 1]]
     if sezioni[0].get('profiloDisabilitato'):
         raise ArgoSyncError('Profilo Argo disabilitato')
-    if any(sezioni[0].get(k) is True for k in ('hasMore', 'has_more', 'parziale')):
+    if parziale(sezioni[0]):
         raise ArgoSyncError('Profilo con risposta parziale: storico da completare')
     return sezioni[0]
 

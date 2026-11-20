@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.4.12 – Verifica e ripristino delle copie locali dei voti
+
+- In **Voti → Verifica voti duplicati**, disponibile anche dalle Impostazioni, ogni gruppo mostra data completa, materia, voto, descrizione e le registrazioni locali dello studente selezionato. **Confronta tutti con Argo** controlla i gruppi dell’anno con una sola lettura del registro. È disponibile anche il confronto per singolo gruppo.
+- Dopo il confronto puoi scegliere la voce da conservare ed escludere una copia da UniScuola. **Ripristina** annulla la scelta. Se Argo corregge o ritira una delle registrazioni, UniScuola riesamina la visibilità nella stessa sincronizzazione.
+- Le esclusioni valgono per elenchi, statistiche, ricerca, medie locali, bot e dati della card. Le medie ufficiali restano quelle comunicate da Argo. Le decisioni riguardano soltanto l’archivio locale.
+
 ## 2.4.11 – Voti, medie e stato del registro
 
 - La sincronizzazione usa l’elenco voti di Famiglia WEB e accetta il formato precedente quando quello corrente è assente. Alla prima sincronizzazione riuscita verifica anche lo storico dell’anno. Accorpa le copie per cui Argo fornisce una corrispondenza e conserva le prove distinte, anche a parità di data, materia e voto. Il recupero dello storico è silenzioso.

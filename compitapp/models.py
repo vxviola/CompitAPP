@@ -97,6 +97,7 @@ def init_db():
     )''')
 
     _migra_eventi(conn)
+    _crea_revisione_voti(conn)
     conn.commit()
     conn.close()
     print("[DB] Inizializzato correttamente")
@@ -185,6 +186,29 @@ def _migra_eventi(conn):
         PRIMARY KEY(materiale_id,data))''')
 
 
+def _crea_revisione_voti(conn):
+    conn.execute('''CREATE TABLE IF NOT EXISTS voti_esclusi (
+        studente TEXT NOT NULL, copia_id INTEGER NOT NULL, conserva_id INTEGER NOT NULL,
+        PRIMARY KEY(studente,copia_id), CHECK(copia_id <> conserva_id))''')
+    conn.execute('CREATE INDEX IF NOT EXISTS ix_voti_esclusi_conserva ON voti_esclusi(studente,conserva_id)')
+    conn.execute('''CREATE VIEW IF NOT EXISTS voti_visibili AS
+        SELECT v.* FROM voti v WHERE NOT EXISTS (
+            SELECT 1 FROM voti_esclusi e WHERE e.studente=v.studente AND e.copia_id=v.id)''')
+    # La decisione è valida per la coppia verificata. Se Argo ritira o corregge
+    # una delle righe, le altre tornano subito visibili nella stessa transazione.
+    annulla = '''DELETE FROM voti_esclusi WHERE studente=OLD.studente
+                 AND (copia_id=OLD.id OR conserva_id=OLD.id);'''
+    conn.execute(f'''CREATE TRIGGER IF NOT EXISTS voti_esclusi_ritiro AFTER DELETE ON voti
+                     BEGIN {annulla} END''')
+    conn.execute(f'''CREATE TRIGGER IF NOT EXISTS voti_esclusi_modifica
+        AFTER UPDATE OF id,studente,data,materia,voto,descrizione,argo_uid ON voti
+        WHEN NEW.id IS NOT OLD.id OR NEW.studente IS NOT OLD.studente OR NEW.data IS NOT OLD.data
+          OR NEW.materia IS NOT OLD.materia OR NEW.voto IS NOT OLD.voto
+          OR COALESCE(NEW.descrizione,'') <> COALESCE(OLD.descrizione,'')
+          OR NEW.argo_uid IS NOT OLD.argo_uid
+        BEGIN {annulla} END''')
+
+
 def _migra_bacheca(conn):
     """Conserva le comunicazioni esistenti e permette lo stesso avviso per più figli."""
     colonne = {r['name'] for r in conn.execute('PRAGMA table_info(bacheca)')}
@@ -248,7 +272,7 @@ def media_argo(conn, nome):
 def riepilogo_medie(conn, nome, righe=None):
     """Stesse medie per dashboard, sensori e bot. Il conteggio si riferisce ai voti numerici locali."""
     if righe is None:
-        righe = conn.execute('SELECT materia, voto FROM voti WHERE studente=?', (nome,))
+        righe = conn.execute('SELECT materia, voto FROM voti_visibili WHERE studente=?', (nome,))
     valori = []
     per_materia = {}
     for riga in righe:
@@ -279,7 +303,7 @@ def svuota_studente(conn, nome):
     così al prossimo giro l'anno scolastico viene riletto da capo (senza notifiche)."""
     for t in ('compiti', 'voti', 'assenze', 'note_disciplinari', 'bacheca',
               'argomenti', 'promemoria', 'orario', 'lezioni_registro', 'argo_eventi', 'registro_argo',
-              'allegati_letti', 'voti_alias'):
+              'allegati_letti', 'voti_alias', 'voti_esclusi'):
         conn.execute(f'DELETE FROM {t} WHERE studente=?', (nome,))
     chiavi = [f'media_argo:{nome}', f'sync_ui:{nome}', f'storico:bacheca_allegati:{nome}']
     for categoria in ('compiti', 'voti', 'assenze', 'note', 'bacheca', 'argomenti', 'promemoria', 'registro'):

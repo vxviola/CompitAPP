@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% from "ui_macros.html" import icon with context %}
+{% macro campi(gruppo, azione) %}
+    <input type="hidden" name="token" value="{{ token_modulo }}">
+    <input type="hidden" name="versione" value="{{ gruppo.versione }}">
+    <input type="hidden" name="azione" value="{{ azione }}">
+{% endmacro %}
+{% block content %}
+<div class="container">
+    <div class="quick-tools">
+        {% if gruppi %}<form method="post" action="{{ ui_link('/voti/duplicati') }}">
+            <input type="hidden" name="token" value="{{ token_modulo }}">
+            <input type="hidden" name="azione" value="confronta_tutti">
+            <button type="submit" class="feature-button">Confronta tutti con Argo</button>
+        </form>{% endif %}
+        <a class="feature-button secondary" href="{{ ui_link('/voti') }}">Torna ai voti</a>
+        <a class="feature-button secondary" href="https://www.portaleargo.it/famiglia/" target="_blank" rel="noopener noreferrer">Apri Argo Famiglia {{ icon('arrow','sm') }}</a>
+    </div>
+    {% if avviso %}<p class="card" role="status">{{ avviso }}</p>{% endif %}
+    {% if errore %}<p class="card" role="alert">{{ errore }}</p>{% endif %}
+    {% if gruppi %}
+    <p><strong>{{ gruppi_multipli }}</strong> {{ 'gruppo con più voci visibili' if gruppi_multipli == 1 else 'gruppi con più voci visibili' }} · <strong>{{ copie_escluse }}</strong> {{ 'copia esclusa' if copie_escluse == 1 else 'copie escluse' }}</p>
+    <p class="feature-note">Per ogni gruppo, confronta le registrazioni con Argo. Se Argo mostra una sola prova, conserva la voce che le corrisponde ed escludi la copia da UniScuola. Se mostra due prove distinte, conserva entrambe.</p>
+    {% endif %}
+    <div class="board-grid">
+        {% for gruppo in gruppi %}
+        {% set visibili = gruppo.righe|rejectattr('esclusa')|list %}
+        {% set escluse = gruppo.righe|selectattr('esclusa')|list %}
+        {% set esito = riscontri.get(gruppo.versione) %}
+        {% set azione = ui_link('/voti/duplicati') ~ '#gruppo-' ~ gruppo.versione %}
+        <section class="card" id="gruppo-{{ gruppo.versione }}">
+            <div class="card-header"><h2 class="card-title">{{ gruppo.materia }} · {{ gruppo.voto }}</h2></div>
+            <p><time datetime="{{ gruppo.data }}">{{ gruppo.data|data_breve }} {{ gruppo.data[:4] }}</time>{% if gruppo.descrizione %} · {{ gruppo.descrizione }}{% endif %}</p>
+            <p class="feature-note">{{ visibili|length }} {{ 'voce visibile' if visibili|length == 1 else 'voci visibili' }}{% if escluse %} · {{ escluse|length }} {{ 'copia esclusa' if escluse|length == 1 else 'copie escluse' }}{% endif %}</p>
+            <form method="post" action="{{ azione }}">
+                {{ campi(gruppo, 'confronta') }}
+                <button type="submit" class="feature-button secondary">Confronta con Argo</button>
+            </form>
+            {% if esito %}<p role="status"><strong>Riscontro Argo · {{ esito.ora }}</strong><br>{{ esito.messaggio }}</p>{% endif %}
+            {% for riga in gruppo.righe %}
+            <div class="search-result">
+                <strong>Voce locale {{ riga.id }}{% if riga.esclusa %} · Esclusa{% endif %}</strong>
+                <small>{{ 'Identificativo Argo presente' if riga.collegato else 'Identificativo Argo assente' }}{% if riga.creato_il %} · Inserita in UniScuola il {{ riga.creato_il }}{% endif %}</small>
+                {% if esito and esito.righe.get(riga.id) %}<p>{{ esito.righe[riga.id] }}</p>{% endif %}
+                {% if riga.esclusa %}
+                    <p>Conservata la voce locale {{ riga.conserva_id }}.</p>
+                    <form method="post" action="{{ azione }}">
+                        {{ campi(gruppo, 'ripristina') }}
+                        <input type="hidden" name="copia_id" value="{{ riga.id }}">
+                        <button type="submit" class="feature-button secondary">Ripristina voce {{ riga.id }}</button>
+                    </form>
+                {% elif visibili|length > 1 and (not esito or esito.esito != 'distinti') %}
+                    <details><summary>Escludi la voce {{ riga.id }}</summary>
+                    <form method="post" action="{{ azione }}" class="feature-form">
+                        {{ campi(gruppo, 'escludi') }}
+                        <input type="hidden" name="copia_id" value="{{ riga.id }}">
+                        <label>Voce da conservare
+                            <select name="conserva_id" required>
+                            {% for altra in visibili|rejectattr('id', 'equalto', riga.id)|sort(attribute='collegato', reverse=true) %}
+                                <option value="{{ altra.id }}">Voce {{ altra.id }} · {{ 'con ID Argo' if altra.collegato else 'senza ID Argo' }}</option>
+                            {% endfor %}
+                            </select>
+                        </label>
+                        <label class="filter-check"><input type="checkbox" name="conferma" value="si" required>Ho verificato che la voce {{ riga.id }} è una copia.</label>
+                        <button type="submit" class="feature-button">Conferma esclusione</button>
+                    </form></details>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </section>
+        {% else %}
+        <div class="card"><div class="empty-state">{{ icon('check') }}<strong>Nessun gruppo di voti identici.</strong>I gruppi con la stessa data, materia, valutazione e descrizione compariranno qui.</div></div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

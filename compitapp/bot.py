@@ -121,7 +121,7 @@ def _testo_resoconto(conn, nome, mostra_nome=False):
         'SELECT data, materia, testo FROM compiti WHERE studente=? AND data > ? AND data <= ? ORDER BY data, materia',
         (nome, domani, fra_7_giorni)).fetchall()
     ultimi_voti = conn.execute(
-        'SELECT materia, voto, data FROM voti WHERE studente=? ORDER BY data DESC, id DESC LIMIT 3', (nome,)).fetchall()
+        'SELECT materia, voto, data FROM voti_visibili WHERE studente=? ORDER BY data DESC, id DESC LIMIT 3', (nome,)).fetchall()
 
     msg = f"📋 <b>Resoconto UniScuola</b>\n<i>{data_ita(date.today())}</i>\n"
     if mostra_nome:
@@ -243,7 +243,7 @@ def _cmd_voti(chat_id):
         testi = []
         for nome in nomi:
             voti = conn.execute(
-                'SELECT materia, voto, data FROM voti WHERE studente=? ORDER BY data DESC, id DESC LIMIT 8', (nome,)
+                'SELECT materia, voto, data FROM voti_visibili WHERE studente=? ORDER BY data DESC, id DESC LIMIT 8', (nome,)
             ).fetchall()
             testi.append((nome, voti, riepilogo_medie(conn, nome)))
         conn.close()

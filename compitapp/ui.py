@@ -64,6 +64,7 @@ def contesto_ui(studenti, stato):
         'calendario': ('Calendario', 'Le prossime consegne, con il tempo per organizzarsi.'),
         'bacheca': ('Bacheca', 'Comunicazioni e documenti, tutti al loro posto.'),
         'voti': ('Voti e progressi', 'Uno sguardo al percorso, materia per materia.'),
+        'revisione': ('Verifica voti duplicati', 'Confronta le voci di UniScuola con le valutazioni nel registro Argo.'),
         'orario': ('Orario', 'La settimana di scuola, a colpo d’occhio.'),
         'assenze': ('Presenze e assenze', 'Assenze, ritardi e giustificazioni.'),
         'argomenti': ('Lezioni', 'Quello che si impara, giorno dopo giorno.'),

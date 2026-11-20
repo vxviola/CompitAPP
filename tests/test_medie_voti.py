@@ -98,3 +98,27 @@ class MedieVotiTest(DatabaseFixture, unittest.TestCase):
         self.assertNotIn('Sotto soglia', messaggio)
         self.assertIn('Arte &amp; musica', messaggio)
         self.assertIn('A &lt; B', messaggio)
+
+    def test_copia_esclusa_e_ripristinata_su_tutti_i_canali(self):
+        from revisione_voti import escludi_copia, gruppi_voti, ripristina_copia
+        self.inserisci_voti([('Storia', '8'), ('Storia', '8'), ('Storia', '5')])
+        with closing(models.get_db()) as conn:
+            gruppo, = gruppi_voti(conn, self.nome)
+            prima, seconda = [r['id'] for r in gruppo['righe']]
+            escludi_copia(conn, self.nome, seconda, prima, gruppo['versione'])
+        for quanti, media in ((1, 6.5), (2, 7.0)):
+            home, voti, sensori, bot_html = self.leggi_canali()
+            self.assertEqual(voti.count('class="grades-row"'), quanti + 1)
+            self.assertEqual(home.count('class="grades-row"'), quanti + 1)
+            self.assertEqual(bot_html.count('Storia: <b>8</b>'), quanti)
+            self.assertEqual(sensori['media_voti'], media)
+            self.assertEqual(len(sensori['dettagli']['voti']), quanti + 1)
+            stats = self.client.get('/api/stats', query_string={'studente': self.nome}).get_json()
+            self.assertEqual((stats['totale_voti'], stats['gruppi_voti_uguali']), (quanti + 1, quanti - 1))
+            with patch('funzioni.get_studenti', return_value=STUDENTI):
+                ricerca = self.client.get('/ricerca', query_string={'studente': self.nome, 'q': 'Storia'}).text
+            self.assertEqual(ricerca.count('class="search-result"'), quanti + 1)
+            if quanti == 1:
+                with closing(models.get_db()) as conn:
+                    gruppo, = gruppi_voti(conn, self.nome)
+                    ripristina_copia(conn, self.nome, seconda, gruppo['versione'])
